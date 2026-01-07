@@ -1,0 +1,48 @@
+services:
+  validator:
+    build:
+      context: ./validator
+      dockerfile: Dockerfile
+    container_name: fhir-validator
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx4g -Djavax.net.ssl.trustAll=true
+      - FHIR_VERSION=4.0
+      - TX_SERVER=https://nginx/fhir
+      # - IG_PARAMS=-ig /igs/de.medizininformatikinitiative.kerndatensatz.base-2026.0.0.tgz
+      - IG_PARAMS=-ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0 -ig de.basisprofil.r4#1.5.4
+    volumes:
+      - ./validator/config:/config:ro
+      - ./igs:/igs:ro
+      - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
+      # Uncomment to persist package cache for offline use:
+      - fhir-package-cache:/root/.fhir/packages
+    networks:
+      - fhir-network
+    depends_on:
+      nginx:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: fhir-nginx
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - fhir-network
+    restart: unless-stopped
+
+networks:
+  fhir-network:
+    driver: bridge
+
+# Uncomment to persist FHIR package cache for offline operation:
+volumes:
+  fhir-package-cache:

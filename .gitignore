@@ -1,0 +1,32 @@
+# Certificates (security)
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+
+# Validator JAR
+validator/validator_cli.jar
+
+# Implementation Guides (can be large)
+igs/*.tgz
+igs/*.tar.gz
+
+# Docker volumes
+.volumes/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Temporary files
+*.tmp
+*.bak
+*~
