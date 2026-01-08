@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - JAVA_OPTS=-Xmx4g -Djavax.net.ssl.trustAll=true
+      - JAVA_OPTS=-Xmx4g # Adjust memory allocation as needed
       - FHIR_VERSION=4.0
       - TX_SERVER=https://nginx/fhir
       # - IG_PARAMS=-ig /igs/de.medizininformatikinitiative.kerndatensatz.base-2026.0.0.tgz
