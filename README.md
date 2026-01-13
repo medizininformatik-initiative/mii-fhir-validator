@@ -7,6 +7,9 @@ A locally deployable FHIR validation service that can run in environments withou
 
 **Current Configuration:** This setup is configured to connect to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`) which requires client certificate authentication. See [Configuration](#configuration) below for switching to a local or different terminology server.
 
+> [!IMPORTANT]
+> The default terminology server MUST NOT be used for running production validations in local ETL processes. The Service Unit Terminological Services does not allow this kind of usage. You are welcome to use this tool for the development process of your local ETL processes however, where only a few resources are validated, and no personal data is sent to the service. If you have any questions about this policy, please contact [team@mail.mii-termserv.de](mailto:team@mail.mii-termserv.de).
+
 ## Prerequisites
 
 - Docker and Docker Compose
