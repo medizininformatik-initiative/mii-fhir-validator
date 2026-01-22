@@ -30,3 +30,11 @@ Thumbs.db
 *.tmp
 *.bak
 *~
+
+# SNOMED release files
+SnomedCT_*.zip
+snomed-ct-release/SnomedCT_*
+
+# Node.js / npm (terminology packages)
+scripts/terminology/node_modules/
+scripts/terminology/package-lock.json

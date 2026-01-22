@@ -1,0 +1,12 @@
+# Docker Compose override for CI/CD environments
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.ci.yml up
+# This configuration disables SNOMED CT (not in version control)
+
+services:
+  blaze:
+    environment:
+      # Disable SNOMED CT for CI (no release files in repo)
+      ENABLE_TERMINOLOGY_SNOMED_CT: "false"
+    volumes:
+      # Override SNOMED volume mount - use empty directory
+      - blaze-data:/app/data

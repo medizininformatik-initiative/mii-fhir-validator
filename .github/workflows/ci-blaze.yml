@@ -1,0 +1,112 @@
+name: CI Blaze TermServer
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Download FHIR validator
+      run: ./validator/download-validator.sh
+    
+    - name: Generate self-signed certificate
+      run: ./scripts/generate-self-signed-cert.sh
+    
+    - name: Download MII terminology packages
+      run: ./scripts/terminology/get-mii-terminology.sh install
+    
+    - name: Start services (CI mode - SNOMED disabled)
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up -d
+    
+    - name: Wait for Blaze to be ready
+      run: |
+        echo "Waiting for Blaze to start..."
+        for i in {1..30}; do
+          if curl -f http://localhost:8082/fhir/metadata >/dev/null 2>&1; then
+            echo "Blaze is ready!"
+            break
+          fi
+          echo "Attempt $i/30: Blaze not ready yet..."
+          sleep 2
+        done
+        curl -f http://localhost:8082/fhir/metadata || exit 1
+    
+    - name: Upload MII terminology to Blaze
+      run: ./scripts/terminology/upload-terminology.sh
+    
+    - name: Wait for validator to be ready
+      run: |
+        echo "Waiting for validator to start..."
+        for i in {1..60}; do
+          # Check logs for the ready message
+          if docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+            echo "Validator is ready!"
+            break
+          fi
+          echo "Attempt $i/60: Validator not ready yet..."
+          sleep 3
+        done
+        
+        # Verify it actually started
+        if ! docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+          echo "ERROR: Validator failed to start. Logs:"
+          docker compose logs validator
+          exit 1
+        fi
+    
+    - name: Run validation test
+      run: |
+        # Test with a MII Observation resource
+        echo "Testing: valid-observation.json"
+        
+        # POST to validator and capture response
+        RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
+          -H "Content-Type: application/fhir+json" \
+          -H "Accept: application/fhir+json" \
+          -d @.github/test-resources/valid-observation.json)
+        
+        echo "Validation response:"
+        echo "$RESPONSE" | jq .
+        
+        # Check that we got an OperationOutcome
+        RESOURCE_TYPE=$(echo "$RESPONSE" | jq -r '.resourceType')
+        if [ "$RESOURCE_TYPE" != "OperationOutcome" ]; then
+          echo "ERROR: Expected OperationOutcome, got $RESOURCE_TYPE"
+          exit 1
+        fi
+        
+        # Check for fatal/error severity (warnings and information are acceptable)
+        FATAL_ERRORS=$(echo "$RESPONSE" | jq '[.issue[] | select(.severity == "fatal" or .severity == "error")] | length')
+        
+        if [ "$FATAL_ERRORS" -gt 0 ]; then
+          echo "✗ Validation failed with $FATAL_ERRORS fatal/error issue(s):"
+          echo "$RESPONSE" | jq '.issue[] | select(.severity == "fatal" or .severity == "error")'
+          exit 1
+        fi
+        
+        echo "✓ Validation passed (no fatal/error issues)"
+    
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "=== Docker Compose Logs ==="
+        docker compose logs
+        echo "=== Container Status ==="
+        docker compose ps
+    
+    - name: Cleanup
+      if: always()
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml down -v
