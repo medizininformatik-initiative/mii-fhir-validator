@@ -9,8 +9,11 @@ services:
     environment:
       - JAVA_OPTS=-Xmx4g # Adjust memory allocation as needed
       - FHIR_VERSION=4.0
-      - TX_SERVER=https://nginx/fhir
-      # - IG_PARAMS=-ig /igs/de.medizininformatikinitiative.kerndatensatz.base-2026.0.0.tgz
+      # Use nginx as HTTPS proxy to Blaze (validator forces HTTPS)
+      - TX_SERVER=${TX_SERVER:-https://nginx/fhir}
+      # For MII Ontoserver instead of Blaze, use docker-compose.override.yml.example
+      # - IG_PARAMS= -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
+      # -ig /igs/de.medizininformatikinitiative.kerndatensatz.base-2026.0.0.tgz
       - IG_PARAMS=
           -ig de.basisprofil.r4#1.5.4
           -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0
@@ -28,16 +31,46 @@ services:
       - ./validator/config:/config:ro
       - ./igs:/igs:ro
       - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
-      # Uncomment to persist package cache for offline use:
       - fhir-package-cache:/root/.fhir/packages
+    depends_on:
+      blaze:
+        condition: service_healthy
+      nginx:
+        condition: service_started
     networks:
       - fhir-network
-    depends_on:
-      nginx:
-        condition: service_healthy
+    restart: unless-stopped
+
+  blaze:
+    image: samply/blaze:latest
+    container_name: blaze-terminology
+    ports:
+      - "8082:8080"
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xmx8g"
+      DB_BLOCK_CACHE_SIZE: "1024"
+      ENABLE_TERMINOLOGY_SERVICE: true
+      ENABLE_TERMINOLOGY_LOINC: true
+      ENABLE_TERMINOLOGY_SNOMED_CT: true
+      SNOMED_CT_RELEASE_PATH: "/snomed-ct-release"
+      ENFORCE_REFERENTIAL_INTEGRITY: true
+      CQL_EXPR_CACHE_SIZE: 128
+      DB_RESOURCE_CACHE_SIZE: 100000
+      TERMINOLOGY_SERVICE_GRAPH_CACHE_SIZE: 100000
+    volumes:
+      - blaze-data:/app/data
+      - ./snomed-ct-release/SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z:/snomed-ct-release:ro
+    networks:
+      - fhir-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     restart: unless-stopped
 
   nginx:
+    # Provides HTTPS proxy to Blaze (validator requires HTTPS)
     build:
       context: ./nginx
       dockerfile: Dockerfile
@@ -55,6 +88,6 @@ networks:
   fhir-network:
     driver: bridge
 
-# Uncomment to persist FHIR package cache for offline operation:
 volumes:
   fhir-package-cache:
+  blaze-data:

@@ -18,18 +18,17 @@ RUN mkdir -p /igs
 # Create certificate import script
 RUN echo '#!/bin/bash\n\
 if [ -f /etc/nginx/certs/self-signed.crt ]; then\n\
-  keytool -import -trustcacerts -noprompt -alias nginx-self-signed \\\n\
-    -file /etc/nginx/certs/self-signed.crt \\\n\
-    -keystore ${JAVA_HOME}/lib/security/cacerts \\\n\
-    -storepass changeit\n\
+  # Check if certificate is already imported\n\
+  if ! keytool -list -keystore ${JAVA_HOME}/lib/security/cacerts -storepass changeit -alias nginx-self-signed &>/dev/null; then\n\
+    keytool -import -trustcacerts -noprompt -alias nginx-self-signed \\\n\
+      -file /etc/nginx/certs/self-signed.crt \\\n\
+      -keystore ${JAVA_HOME}/lib/security/cacerts \\\n\
+      -storepass changeit\n\
+  fi\n\
 fi' > /tmp/import-cert.sh && chmod +x /tmp/import-cert.sh
 
 # Expose validator port
 EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
 
 # Run validator in server mode
 # Default parameters - can be overridden via environment variables
