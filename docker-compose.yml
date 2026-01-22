@@ -28,7 +28,6 @@ services:
           -ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.0
           -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.0-ballot
     volumes:
-      - ./validator/config:/config:ro
       - ./igs:/igs:ro
       - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
       - fhir-package-cache:/root/.fhir/packages

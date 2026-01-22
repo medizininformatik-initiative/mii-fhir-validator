@@ -8,10 +8,24 @@ A locally deployable FHIR validation service. This service includes:
 
 **Current Configuration:** This setup uses **Blaze** as the default terminology server for local development and validation. For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`), see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
 
-> [!IMPORTANT]
-> The default terminology server MUST NOT be used for running production validations in local ETL processes. The Service Unit Terminological Services does not allow this kind of usage. You are welcome to use this tool for the development process of your local ETL processes however, where only a few resources are validated, and no personal data is sent to the service. If you have any questions about this policy, please contact [team@mail.mii-termserv.de](mailto:team@mail.mii-termserv.de).
+## Docker Image
 
-## Prerequisites
+Pre-built Docker images are available on GitHub Container Registry. These images include the FHIR Validator with MII Implementation Guides pre-configured.
+
+**Quick Start with Docker:**
+```bash
+docker run -p 8080:8080 \
+  -e TX_SERVER=http://your-terminology-server:8080/fhir \
+  ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
+```
+
+For detailed Docker usage, configuration options, and examples, see **[DOCKER.md](DOCKER.md)**.
+
+## Local Development Setup
+
+The following instructions are for running the complete local development setup with Blaze terminology server.
+
+### Prerequisites
 
 - Docker and Docker Compose
 - FHIR Validator JAR file (downloaded by setup script)
