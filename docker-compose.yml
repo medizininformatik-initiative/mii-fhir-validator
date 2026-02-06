@@ -1,5 +1,8 @@
 services:
   validator:
+    # Use published image from GitHub Container Registry
+    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:develop
+    # Or build locally from source
     build:
       context: ./validator
       dockerfile: Dockerfile
