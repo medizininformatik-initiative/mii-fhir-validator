@@ -5,6 +5,7 @@ nginx/certs/*.crt
 
 # Validator JAR
 validator/validator_cli.jar
+validator/validator_cli-6.7.12-allowHttp.jar
 
 # Implementation Guides (can be large)
 igs/*.tgz
