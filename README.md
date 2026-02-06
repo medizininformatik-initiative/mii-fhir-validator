@@ -5,12 +5,11 @@
 # MII FHIR Validator Service
 
 A locally deployable FHIR validation service. This service includes:
-- FHIR Validator as a local HTTP service
+- FHIR Validator as a local HTTP service (with custom allowHttp support)
 - Blaze terminology service (default, no authentication required)
-- Optional: Nginx proxy for certificate-based access to MII Ontoserver
 - Support for offline Implementation Guides
 
-**Current Configuration:** This setup uses **Blaze** as the default terminology server for local development and validation. For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`), see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
+**Current Configuration:** This setup uses **Blaze** as the default terminology server for local development and validation with direct HTTP connectivity. For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`), see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
 
 ## Docker Image
 
@@ -41,44 +40,38 @@ The following instructions are for running the complete local development setup 
    ./validator/download-validator.sh
    ```
 
-2. **Generate self-signed certificate:**
-   ```bash
-   ./scripts/generate-self-signed-cert.sh
-   ```
-   This creates certificates needed for the validator's internal HTTPS connection to Blaze (via nginx proxy).
-
-3. **Add SNOMED CT release files (required for validation):**
+2. **Add SNOMED CT release files (required for validation):**
    ```bash
    # Download SNOMED CT International Edition from e.g. https://www.nlm.nih.gov/healthit/snomedct/
    # Extract the release into the snomed-ct-release/ directory
    # See snomed-ct-release/README.md for detailed instructions
    ```
 
-4. **Download MII terminology packages (required for MII validation):**
+3. **Download MII terminology packages (required for MII validation):**
    ```bash
    ./scripts/terminology/get-mii-terminology.sh install
    ```
    This downloads CodeSystems and ValueSets that will be loaded into Blaze.
 
-5. **Add Implementation Guides (optional):**
+4. **Add Implementation Guides (optional):**
    Place your offline IG package files (`.tgz`) in the `igs/` directory.
    
    **For true offline operation:** You also need to pre-populate the FHIR package cache with core dependencies. See [Offline Operation](#offline-operation) below.
 
-6. **Start the services:**
+5. **Start the services:**
    ```bash
    docker-compose up -d
    ```
-   This starts the validator with Blaze terminology server (LOINC + SNOMED CT support).
+   This starts the validator with direct HTTP connection to Blaze terminology server (LOINC + SNOMED CT support).
 
-7. **Load terminology resources into Blaze (required for validation):**
+6. **Load terminology resources into Blaze (required for validation):**
    ```bash
    # Wait for Blaze to be ready (check: docker-compose logs blaze)
    ./scripts/terminology/upload-terminology.sh
    ```
    This uploads CodeSystems and ValueSets to Blaze. Without this step, terminology validation will fail.
 
-8. **Access the validator:**
+7. **Access the validator:**
    - Validator API: `http://localhost:8080`
    - Blaze terminology server: `http://localhost:8082`
 
@@ -90,15 +83,14 @@ The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology s
 
 **Architecture:**
 - **Blaze** runs on HTTP (accessible on port 8082)
-- **Nginx** provides HTTPS/SSL termination with self-signed certificate
-- **Validator** connects to `https://nginx/fhir`, which proxies to Blaze over HTTP
+- **Validator** connects directly to Blaze via HTTP using the custom `allowHttp` feature configured in `fhir-settings.json`
 
 ### Validator Configuration
 
 Edit `docker-compose.yml` environment variables to customize:
 - `FHIR_VERSION` - FHIR version (default: 4.0)
 - `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
-- `TX_SERVER` - Terminology server endpoint (default: `https://nginx/fhir` which proxies to Blaze)
+- `TX_SERVER` - Terminology server endpoint (default: `http://blaze-terminology:8080/fhir` for direct HTTP connection)
 - `JAVA_OPTS` - JVM memory settings
 
 ## Usage Examples
@@ -140,15 +132,16 @@ If you need to run the validator JAR directly (outside Docker):
 
 **With Blaze running via Docker Compose:**
 ```bash
-# Start only Blaze and nginx via Docker
-docker-compose up -d blaze nginx
+# Start only Blaze via Docker
+docker-compose up -d blaze
 
-# Run validator locally, connecting to Blaze on localhost
-java -jar validator/validator_cli.jar \
+# Run validator locally, connecting directly to Blaze on localhost
+java -jar validator/validator_cli-6.7.12-allowHttp.jar \
   -server 8080 \
   -version 4.0 \
   -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 \
-  -tx http://localhost:8082/fhir
+  -tx http://localhost:8082/fhir \
+  -fhir-settings validator/fhir-settings.json
 ```
 
 **Note:** Without a terminology server, validation will be incomplete. See [Configuration](#configuration) for terminology server options.
