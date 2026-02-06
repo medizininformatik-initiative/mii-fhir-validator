@@ -20,7 +20,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Check for patched validator JAR
+        id: check_jar
+        run: |
+          if [ -f "validator/validator_cli-6.7.12-allowHttp.jar" ]; then
+            echo "patched_jar_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "patched_jar_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Download FHIR validator
+        if: steps.check_jar.outputs.patched_jar_exists != 'true'
         run: ./validator/download-validator.sh
       
       - name: Set up Docker Buildx
@@ -35,14 +45,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: Generate self-signed certificate
-        run: ./scripts/generate-self-signed-cert.sh
-      
       - name: Download MII terminology packages
         run: ./scripts/terminology/get-mii-terminology.sh install
       
       - name: Start Blaze TermServer (CI mode)
-        run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up -d blaze nginx
+        run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up -d blaze
       
       - name: Wait for Blaze to be ready
         run: |
@@ -62,13 +69,12 @@ jobs:
       
       - name: Test validator image with Blaze
         run: |
-          # Start validator with Blaze as terminology server (via nginx HTTPS proxy)
+          # Start validator with direct HTTP connection to Blaze (allowHttp enabled)
           docker run -d --name test-validator \
             --network mii-fhir-validator_fhir-network \
             -p 8080:8080 \
-            -e TX_SERVER=https://nginx/fhir \
+            -e TX_SERVER=http://blaze-terminology:8080/fhir \
             -e JAVA_OPTS=-Xmx4g \
-            -v $PWD/nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro \
             mii-fhir-validator:test
           
           # Wait for validator to start
@@ -161,7 +167,17 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
       
+      - name: Check for patched validator JAR
+        id: check_jar_push
+        run: |
+          if [ -f "validator/validator_cli-6.7.12-allowHttp.jar" ]; then
+            echo "patched_jar_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "patched_jar_exists=false" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Download FHIR validator
+        if: steps.check_jar_push.outputs.patched_jar_exists != 'true'
         run: ./validator/download-validator.sh
       
       - name: Build and push

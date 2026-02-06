@@ -9,8 +9,8 @@ services:
     environment:
       - JAVA_OPTS=-Xmx4g # Adjust memory allocation as needed
       - FHIR_VERSION=4.0
-      # Use nginx as HTTPS proxy to Blaze (validator forces HTTPS)
-      - TX_SERVER=${TX_SERVER:-https://nginx/fhir}
+      # Direct HTTP connection to Blaze (allowHttp enabled via fhir-settings.json)
+      - TX_SERVER=${TX_SERVER:-http://blaze-terminology:8080/fhir}
       # For MII Ontoserver instead of Blaze, use docker-compose.override.yml.example
       # - IG_PARAMS= -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
       # -ig /igs/de.medizininformatikinitiative.kerndatensatz.base-2026.0.0.tgz
@@ -29,13 +29,10 @@ services:
           -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.0-ballot
     volumes:
       - ./igs:/igs:ro
-      - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
       - fhir-package-cache:/root/.fhir/packages
     depends_on:
       blaze:
         condition: service_healthy
-      nginx:
-        condition: service_started
     networks:
       - fhir-network
     restart: unless-stopped
@@ -66,21 +63,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
-    restart: unless-stopped
-
-  nginx:
-    # Provides HTTPS proxy to Blaze (validator requires HTTPS)
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: fhir-nginx
-    ports:
-      - "8081:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-    networks:
-      - fhir-network
     restart: unless-stopped
 
 networks:

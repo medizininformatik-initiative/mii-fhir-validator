@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "url": "http://blaze-terminology:8080/fhir",
+      "type": "fhir",
+      "authenticationType": "none",
+      "allowHttp": true
+    }
+  ]
+}
