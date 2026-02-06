@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          lfs: true
       
       - name: Check for patched validator JAR
         id: check_jar
@@ -129,6 +131,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          lfs: true
       
       - name: Download image artifact
         uses: actions/download-artifact@v4
