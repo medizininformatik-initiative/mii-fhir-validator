@@ -1,3 +1,7 @@
+> ⚠️ **Note:** Active development happens on the `develop` branch.
+>
+> ➡️ Go here: https://github.com/medizininformatik-initiative/mii-fhir-validator/tree/develop
+
 # MII FHIR Validator Service
 
 A locally deployable FHIR validation service. This service includes:
