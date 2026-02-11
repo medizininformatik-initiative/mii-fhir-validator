@@ -31,11 +31,14 @@ The following instructions are for running the complete local development setup 
 ### Prerequisites
 
 - Docker and Docker Compose
+- Git LFS (for patched validator JAR)
 - FHIR Validator JAR file (downloaded by setup script)
+> **Note:** This setup uses a patched validator JAR with `allowHttp` support (tracked via Git LFS) to enable direct HTTP connections to terminology servers. See upstream issue: https://github.com/hapifhir/org.hl7.fhir.core/issues/2312 
 
 ## Quick Start
 
 1. **Download the FHIR validator:**
+  Skip this step - the patched validator JAR is already included via Git LFS
    ```bash
    ./validator/download-validator.sh
    ```
@@ -58,20 +61,27 @@ The following instructions are for running the complete local development setup 
    
    **For true offline operation:** You also need to pre-populate the FHIR package cache with core dependencies. See [Offline Operation](#offline-operation) below.
 
-5. **Start the services:**
+5. **Configure environment variables (optional):**
+   ```bash
+   cp .env.default .env
+   # Edit .env to customize settings (TX_SERVER, IG_PARAMS, JAVA_OPTS, etc.)
+   ```
+   Docker Compose will automatically read `.env` for configuration. The `.env.default` file contains default values and is tracked in git, while `.env` is gitignored for local customizations.
+
+6. **Start the services:**
    ```bash
    docker-compose up -d
    ```
    This starts the validator with direct HTTP connection to Blaze terminology server (LOINC + SNOMED CT support).
 
-6. **Load terminology resources into Blaze (required for validation):**
+7. **Load terminology resources into Blaze (required for validation):**
    ```bash
    # Wait for Blaze to be ready (check: docker-compose logs blaze)
    ./scripts/terminology/upload-terminology.sh
    ```
    This uploads CodeSystems and ValueSets to Blaze. Without this step, terminology validation will fail.
 
-7. **Access the validator:**
+8. **Access the validator:**
    - Validator API: `http://localhost:8080`
    - Blaze terminology server: `http://localhost:8082`
 
@@ -87,11 +97,22 @@ The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology s
 
 ### Validator Configuration
 
-Edit `docker-compose.yml` environment variables to customize:
+Configuration can be customized via environment variables:
 - `FHIR_VERSION` - FHIR version (default: 4.0)
 - `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
 - `TX_SERVER` - Terminology server endpoint (default: `http://blaze-terminology:8080/fhir` for direct HTTP connection)
 - `JAVA_OPTS` - JVM memory settings
+
+**Using .env file (recommended):**
+```bash
+cp .env.default .env
+# Edit .env with your custom values
+```
+
+Docker Compose automatically reads `.env` from the same directory. The `.env.default` file provides example values and is tracked in git, while `.env` is gitignored for local customization.
+
+**Direct editing:**
+Alternatively, edit `docker-compose.yml` environment variables directly.
 
 ## Usage Examples
 
@@ -125,26 +146,6 @@ curl -X POST http://localhost:8080/validateResource \
 ```
 
 The validator returns an `OperationOutcome` resource with validation results.
-
-### Running Without Docker
-
-If you need to run the validator JAR directly (outside Docker):
-
-**With Blaze running via Docker Compose:**
-```bash
-# Start only Blaze via Docker
-docker-compose up -d blaze
-
-# Run validator locally, connecting directly to Blaze on localhost
-java -jar validator/validator_cli-6.7.12-allowHttp.jar \
-  -server 8080 \
-  -version 4.0 \
-  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 \
-  -tx http://localhost:8082/fhir \
-  -fhir-settings validator/fhir-settings.json
-```
-
-**Note:** Without a terminology server, validation will be incomplete. See [Configuration](#configuration) for terminology server options.
 
 ## Offline Operation
 
@@ -298,7 +299,16 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    ```
    </details>
 
-3. **Update docker-compose.yml:**
+3. **Update configuration for MII Ontoserver:**
+   
+   Update `.env` to use nginx proxy:
+   ```bash
+   cp .env.default .env
+   # Edit .env and change:
+   TX_SERVER="https://nginx/fhir"
+   ```
+
+4. **Update docker-compose.yml:**
    
    <details>
    <summary>Click to show docker-compose.yml for MII Ontoserver</summary>
@@ -314,22 +324,10 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
        ports:
          - "8080:8080"
        environment:
-         - JAVA_OPTS=-Xmx4g
-         - FHIR_VERSION=4.0
-         - TX_SERVER=https://nginx/fhir
-         - IG_PARAMS=
-             -ig de.basisprofil.r4#1.5.4
-             -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.biobank#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4
-             -ig de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.0-ballot
+         - JAVA_OPTS=${JAVA_OPTS}
+         - FHIR_VERSION=${FHIR_VERSION}
+         - TX_SERVER=${TX_SERVER}
+         - IG_PARAMS=${IG_PARAMS}
        volumes:
          - ./validator/config:/config:ro
          - ./igs:/igs:ro
@@ -365,7 +363,7 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    ```
    </details>
 
-4. **Restart services:**
+5. **Restart services:**
    ```bash
    docker-compose down
    docker-compose up -d
@@ -394,16 +392,3 @@ cd validator
 docker-compose build validator
 docker-compose up -d
 ```
-
-### Certificate Renewal
-
-**For self-signed certificates (default Blaze setup):**
-```bash
-./scripts/generate-self-signed-cert.sh
-docker-compose restart nginx validator
-```
-
-**For MII Ontoserver client certificates:**
-1. Replace certificates in `nginx/certs/`
-2. Restart nginx: `docker-compose restart nginx`
-

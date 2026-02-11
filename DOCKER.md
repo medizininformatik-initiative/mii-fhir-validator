@@ -25,19 +25,13 @@ docker run -p 8080:8080 \
 
 ### Pre-configured Implementation Guides
 
-The image comes with these MII Implementation Guides pre-configured:
-- de.basisprofil.r4#1.5.4
-- de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.consent#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.biobank#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4
-- de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.patho#2026.0.0
-- de.medizininformatikinitiative.kerndatensatz.icu#2026.0.0-ballot
+The image comes with MII Implementation Guides pre-configured. These packages are downloaded and cached during the Docker build process.
+
+For the complete list of pre-configured IGs and their versions, see:
+- [`validator/Dockerfile`](validator/Dockerfile) - `ARG IG_LIST` section
+- [`.env.default`](.env.default) - `IG_PARAMS` variable
+
+You can override these at runtime using the `IG_PARAMS` environment variable.
 
 ### HTTP Support
 
@@ -113,6 +107,22 @@ docker run -d --name fhir-validator \
 
 ### Docker Compose Example
 
+#### Using .env file (Recommended)
+
+Create a `.env` file from the template:
+```bash
+cp .env.default .env
+```
+
+Then customize `.env` with your settings:
+```env
+JAVA_OPTS="-Xmx4g"
+FHIR_VERSION="4.0"
+TX_SERVER="http://blaze-terminology:8080/fhir"
+IG_PARAMS="-ig de.basisprofil.r4#1.5.4 -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0 ..."
+```
+
+Docker Compose configuration with `.env` support:
 ```yaml
 services:
   blaze:
@@ -141,8 +151,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      TX_SERVER: http://blaze-terminology:8080/fhir
-      JAVA_OPTS: -Xmx4g
+      - JAVA_OPTS=${JAVA_OPTS}
+      - FHIR_VERSION=${FHIR_VERSION}
+      - TX_SERVER=${TX_SERVER}
+      - IG_PARAMS=${IG_PARAMS}
     # Optional: mount custom fhir-settings.json for different HTTP servers
     # volumes:
     #   - ./fhir-settings.json:/app/fhir-settings.json:ro
@@ -157,6 +169,26 @@ networks:
 
 volumes:
   blaze-data:
+```
+
+Docker Compose automatically reads `.env` from the same directory. The `.env.default` file provides example values and is tracked in version control, while `.env` is gitignored for local customization.
+
+#### Inline Configuration
+
+Alternatively, specify environment values directly in `docker-compose.yml`:
+```yaml
+  validator:
+    image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
+    ports:
+      - "8080:8080"
+    environment:
+      TX_SERVER: http://blaze-terminology:8080/fhir
+      JAVA_OPTS: -Xmx4g
+    depends_on:
+      blaze:
+        condition: service_healthy
+    networks:
+      - fhir-network
 ```
 
 ## API Usage

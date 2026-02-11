@@ -41,3 +41,6 @@ scripts/terminology/package-lock.json
 
 # Example configuration files
 docker-compose.yml.example
+
+# Environment variable files
+.env
