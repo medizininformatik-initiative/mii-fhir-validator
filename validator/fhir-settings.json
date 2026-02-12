@@ -5,6 +5,12 @@
       "type": "fhir",
       "authenticationType": "none",
       "allowHttp": true
+    },
+    {
+      "url": "http://nginx/fhir",
+      "type": "fhir",
+      "authenticationType": "none",
+      "allowHttp": true
     }
   ]
 }

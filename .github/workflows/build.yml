@@ -126,7 +126,7 @@ jobs:
   push-image:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ ! startsWith(github.head_ref, 'dependabot/') }}
+    if: ${{ github.ref_type == 'tag' }}
     
     steps:
       - name: Checkout code

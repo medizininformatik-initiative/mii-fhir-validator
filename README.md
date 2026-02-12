@@ -70,7 +70,9 @@ The following instructions are for running the complete local development setup 
 
 6. **Start the services:**
    ```bash
-   docker-compose up -d
+   docker compose --profile blaze up -d
+   # Or use the helper script:
+   ./scripts/start-validator-with-blaze.sh
    ```
    This starts the validator with direct HTTP connection to Blaze terminology server (LOINC + SNOMED CT support).
 
@@ -86,6 +88,21 @@ The following instructions are for running the complete local development setup 
    - Blaze terminology server: `http://localhost:8082`
 
 ## Configuration
+
+### Service Profiles
+
+This setup uses Docker Compose profiles to support different terminology server configurations:
+
+**Blaze Profile (Default - Local Development):**
+- Local Blaze terminology server with LOINC and SNOMED CT
+- Direct HTTP connection (no authentication required)
+- Start with: `docker compose --profile blaze up -d` or `./scripts/start-validator-with-blaze.sh`
+
+**Ontoserver Profile (MII Production Server):**
+- Connects to MII Service Unit Terminology Server via nginx proxy
+- Requires client certificates for authentication
+- Validator connects to nginx via HTTP (allowHttp), nginx proxies HTTPS to MII Ontoserver
+- Start with: `docker compose --profile ontoserver up -d` or `./scripts/start-validator-with-ontoserver.sh`
 
 ### Blaze Terminology Server (Default)
 
@@ -163,9 +180,9 @@ The validator needs **all dependencies** available offline. When starting, it do
 
 Run the validator once while online to download and cache all dependencies:
 ```bash
-docker-compose up -d
-# Wait for all packages to download (check logs: docker-compose logs validator)
-docker-compose down
+docker compose --profile blaze up -d
+# Wait for all packages to download (check logs: docker compose logs validator)
+docker compose down
 ```
 
 The package cache is persisted in a Docker volume and will be available for offline use.
@@ -174,21 +191,21 @@ The package cache is persisted in a Docker volume and will be available for offl
 1. **Add SNOMED CT release files** to `snomed-ct-release/` directory (see [snomed-ct-release/README.md](snomed-ct-release/README.md))
 2. Pre-populate package cache (see above)
 3. Place your IG `.tgz` files in `igs/` directory (optional)
-4. Start services: `docker-compose up -d`
+4. Start services: `docker compose --profile blaze up -d`
 
 **Note:** A terminology service like Blaze is required for complete FHIR validation. Without it, terminology-dependent validations (CodeSystem, ValueSet bindings, code validation) will fail.
 
 ### Loading Local Implementation Guides
 
-To load IGs from the `igs/` directory, specify the **full container path** in `docker-compose.yml`:
+To load IGs from the `igs/` directory, set the `IG_PARAMS` variable in your `.env` file:
 
-```yaml
-IG_PARAMS=-ig /igs/your-package-2026.0.0.tgz
+```bash
+IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz"
 ```
 
 For multiple IGs:
-```yaml
-IG_PARAMS=-ig /igs/package1.tgz -ig /igs/package2.tgz
+```bash
+IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
 ```
 
 **Note:** Dependencies will still be resolved from the package cache or downloaded online if not cached.
@@ -219,12 +236,21 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    openssl rsa -in encrypted-key.key -out client-key.key
    ```
 
-2. **Configure nginx for MII Ontoserver:**
+2. **Update configuration:**
+   
+   Update `.env` to use nginx proxy:
+   ```bash
+   cp .env.default .env
+   # Edit .env and change:
+   TX_SERVER="http://nginx/fhir"
+   ```
+
+3. **Configure nginx for MII Ontoserver:**
    
    <details>
    <summary>Click to show complete nginx.conf for MII Ontoserver</summary>
    
-   Replace `nginx/nginx.conf` with the following configuration:
+   The default `nginx/nginx.conf` is already configured for MII Ontoserver. It listens on HTTP internally and proxies HTTPS to MII Ontoserver:
    ```nginx
    events {
        worker_connections 1024;
@@ -242,27 +268,6 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
        server {
            listen 80;
            server_name localhost;
-
-           # Health check endpoint
-           location /health {
-               access_log off;
-               return 200 "healthy\n";
-               add_header Content-Type text/plain;
-           }
-
-           # Redirect all other traffic to HTTPS
-           location / {
-               return 301 https://$host$request_uri;
-           }
-       }
-
-       server {
-           listen 443 ssl;
-           server_name localhost;
-
-           # Self-signed certificate for internal communication
-           ssl_certificate /etc/nginx/certs/self-signed.crt;
-           ssl_certificate_key /etc/nginx/certs/self-signed.key;
 
            # Health check endpoint
            location /health {
@@ -289,7 +294,7 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
                proxy_set_header Host $proxy_host;
                proxy_set_header X-Real-IP $remote_addr;
                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-               proxy_set_header X-Forwarded-Proto $scheme;
+               proxy_set_header X-Forwarded-Proto https;
 
                # Handle redirects properly
                proxy_redirect off;
@@ -299,88 +304,30 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    ```
    </details>
 
-3. **Update configuration for MII Ontoserver:**
-   
-   Update `.env` to use nginx proxy:
+4. **Start with Ontoserver profile:**
    ```bash
-   cp .env.default .env
-   # Edit .env and change:
-   TX_SERVER="https://nginx/fhir"
-   ```
-
-4. **Update docker-compose.yml:**
+   # Start services with ontoserver profile
+   docker compose --profile ontoserver up -d
    
-   <details>
-   <summary>Click to show docker-compose.yml for MII Ontoserver</summary>
-   
-   Replace `docker-compose.yml` with this version (Blaze service removed):
-   ```yaml
-   services:
-     validator:
-       build:
-         context: ./validator
-         dockerfile: Dockerfile
-       container_name: fhir-validator
-       ports:
-         - "8080:8080"
-       environment:
-         - JAVA_OPTS=${JAVA_OPTS}
-         - FHIR_VERSION=${FHIR_VERSION}
-         - TX_SERVER=${TX_SERVER}
-         - IG_PARAMS=${IG_PARAMS}
-       volumes:
-         - ./validator/config:/config:ro
-         - ./igs:/igs:ro
-         - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
-         - fhir-package-cache:/root/.fhir/packages
-       depends_on:
-         nginx:
-           condition: service_healthy
-       networks:
-         - fhir-network
-       restart: unless-stopped
-
-     nginx:
-       build:
-         context: ./nginx
-         dockerfile: Dockerfile
-       container_name: fhir-nginx
-       ports:
-         - "8081:80"
-       volumes:
-         - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-         - ./nginx/certs:/etc/nginx/certs:ro
-       networks:
-         - fhir-network
-       restart: unless-stopped
-
-   networks:
-     fhir-network:
-       driver: bridge
-
-   volumes:
-     fhir-package-cache:
-   ```
-   </details>
-
-5. **Restart services:**
-   ```bash
-   docker-compose down
-   docker-compose up -d
+   # Or use the helper script (validates certificates and config):
+   ./scripts/start-validator-with-ontoserver.sh
    ```
    
-   The validator will now use MII Ontoserver instead of Blaze.
+   The setup works as follows:
+   - Validator connects to nginx via HTTP (using allowHttp feature)
+   - Nginx proxies requests to MII Ontoserver via HTTPS
+   - Client certificates are used for authentication with MII Ontoserver
 
 ### Using Other Terminology Servers
 
 **For a local server without authentication (e.g., HAPI FHIR):**
-- Edit `docker-compose.yml`: Change `TX_SERVER` to `http://your-server:port/fhir`
-- Update nginx configuration or connect directly
+- Set `TX_SERVER` to `http://your-server:port/fhir` in `.env`
+- Use the blaze profile: `docker compose --profile blaze up -d`
 
 **For other authenticated servers:**
 - Follow steps similar to MII Ontoserver setup
 - Update `nginx/nginx.conf` with correct URL and certificate paths
-- Configure authentication as required by your server
+- Use the ontoserver profile: `docker compose --profile ontoserver up -d`
 
 ## Maintenance
 
@@ -389,6 +336,6 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
 ```bash
 cd validator
 ./download-validator.sh
-docker-compose build validator
-docker-compose up -d
+docker compose build validator validator-ontoserver
+docker compose --profile blaze up -d  # or --profile ontoserver
 ```

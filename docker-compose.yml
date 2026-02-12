@@ -23,6 +23,33 @@ services:
     networks:
       - fhir-network
     restart: unless-stopped
+    profiles: ["blaze"]
+
+  validator-ontoserver:
+    # Use published image from GitHub Container Registry
+    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.1
+    # Or build locally from source
+    build:
+      context: ./validator
+      dockerfile: Dockerfile
+    container_name: fhir-validator
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=${JAVA_OPTS}
+      - FHIR_VERSION=${FHIR_VERSION}
+      - TX_SERVER=${TX_SERVER}
+      - IG_PARAMS=${IG_PARAMS}
+    volumes:
+      - ./igs:/igs:ro
+      - fhir-package-cache:/root/.fhir/packages
+    depends_on:
+      nginx:
+        condition: service_healthy
+    networks:
+      - fhir-network
+    restart: unless-stopped
+    profiles: ["ontoserver"]
 
   blaze:
     image: samply/blaze:latest
@@ -51,6 +78,27 @@ services:
       timeout: 3s
       retries: 3
     restart: unless-stopped
+    profiles: ["blaze"]
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: fhir-nginx
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - fhir-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    profiles: ["ontoserver"]
 
 networks:
   fhir-network:
