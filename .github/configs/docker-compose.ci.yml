@@ -3,6 +3,13 @@
 # This configuration disables SNOMED CT (not in version control)
 
 services:
+  validator:
+    environment:
+      - JAVA_OPTS=-Xmx4g
+      - FHIR_VERSION=4.0
+      - TX_SERVER=http://blaze-terminology:8080/fhir
+      - IG_PARAMS=-ig de.basisprofil.r4#1.5.4 -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.1 -ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.1-rc.1 -ig de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.biobank#2026.0.0 -ig de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4 -ig de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.1 -ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.1 -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.1
+
   blaze:
     environment:
       # Disable SNOMED CT for CI (no release files in repo)
