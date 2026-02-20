@@ -2,7 +2,7 @@
 
 Docker image for the FHIR Validator configured for MII (Medizininformatik-Initiative) Implementation Guides.
 
-This validator includes a patched version that supports HTTP connections to terminology servers via the `allowHttp` feature configured in `fhir-settings.json`.
+This validator supports HTTP connections to terminology servers via the `allowHttp` feature configured in `fhir-settings.json`.
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ You can override these at runtime using the `IG_PARAMS` environment variable.
 
 ### HTTP Support
 
-This validator includes a custom patch that allows HTTP connections to terminology servers. The allowed servers are configured in `/app/fhir-settings.json` inside the container:
+This validator allows HTTP connections to terminology servers. The allowed servers are configured in `/app/fhir-settings.json` inside the container:
 
 ```json
 {

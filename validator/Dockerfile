@@ -6,8 +6,7 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 # Create working directory
 WORKDIR /app
 
-# Copy validator JAR - supports both patched (allowHttp) and standard versions
-# The build will use whichever JAR file is present
+# Copy validator JAR
 COPY validator_cli*.jar /app/validator_cli.jar
 
 # Copy FHIR settings file

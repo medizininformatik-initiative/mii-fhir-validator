@@ -5,7 +5,7 @@
 # MII FHIR Validator Service
 
 A locally deployable FHIR validation service. This service includes:
-- FHIR Validator as a local HTTP service (with custom allowHttp support)
+- FHIR Validator as a local HTTP service (with allowHttp support)
 - Blaze terminology service (default, no authentication required)
 - Support for offline Implementation Guides
 
@@ -31,14 +31,11 @@ The following instructions are for running the complete local development setup 
 ### Prerequisites
 
 - Docker and Docker Compose
-- Git LFS (for patched validator JAR)
-- FHIR Validator JAR file (downloaded by setup script)
-> **Note:** This setup uses a patched validator JAR with `allowHttp` support (tracked via Git LFS) to enable direct HTTP connections to terminology servers. See upstream issue: https://github.com/hapifhir/org.hl7.fhir.core/issues/2312 
+- FHIR Validator JAR file (downloaded by setup script) 
 
 ## Quick Start
 
 1. **Download the FHIR validator:**
-  Skip this step - the patched validator JAR is already included via Git LFS
    ```bash
    ./validator/download-validator.sh
    ```
@@ -101,7 +98,7 @@ This setup uses Docker Compose profiles to support different terminology server 
 **Ontoserver Profile (MII Production Server):**
 - Connects to MII Service Unit Terminology Server via nginx proxy
 - Requires client certificates for authentication
-- Validator connects to nginx via HTTP (allowHttp), nginx proxies HTTPS to MII Ontoserver
+- Validator connects to nginx via HTTP, nginx proxies HTTPS to MII Ontoserver
 - Start with: `docker compose --profile ontoserver up -d` or `./scripts/start-validator-with-ontoserver.sh`
 
 ### Blaze Terminology Server (Default)
@@ -110,7 +107,7 @@ The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology s
 
 **Architecture:**
 - **Blaze** runs on HTTP (accessible on port 8082)
-- **Validator** connects directly to Blaze via HTTP using the custom `allowHttp` feature configured in `fhir-settings.json`
+- **Validator** connects directly to Blaze via HTTP using the `allowHttp` feature configured in `fhir-settings.json`
 
 ### Validator Configuration
 
@@ -314,7 +311,7 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    ```
    
    The setup works as follows:
-   - Validator connects to nginx via HTTP (using allowHttp feature)
+   - Validator connects to nginx via HTTP
    - Nginx proxies requests to MII Ontoserver via HTTPS
    - Client certificates are used for authentication with MII Ontoserver
 

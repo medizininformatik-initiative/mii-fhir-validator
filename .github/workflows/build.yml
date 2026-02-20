@@ -22,17 +22,7 @@ jobs:
         with:
           lfs: true
       
-      - name: Check for patched validator JAR
-        id: check_jar
-        run: |
-          if [ -f "validator/validator_cli-6.7.12-allowHttp.jar" ]; then
-            echo "patched_jar_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "patched_jar_exists=false" >> $GITHUB_OUTPUT
-          fi
-      
       - name: Download FHIR validator
-        if: steps.check_jar.outputs.patched_jar_exists != 'true'
         run: ./validator/download-validator.sh
       
       - name: Set up Docker Buildx
@@ -71,7 +61,7 @@ jobs:
       
       - name: Test validator image with Blaze
         run: |
-          # Start validator with direct HTTP connection to Blaze (allowHttp enabled)
+          # Start validator with direct HTTP connection to Blaze
           docker run -d --name test-validator \
             --network mii-fhir-validator_fhir-network \
             -p 8080:8080 \
@@ -171,17 +161,7 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
       
-      - name: Check for patched validator JAR
-        id: check_jar_push
-        run: |
-          if [ -f "validator/validator_cli-6.7.12-allowHttp.jar" ]; then
-            echo "patched_jar_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "patched_jar_exists=false" >> $GITHUB_OUTPUT
-          fi
-      
       - name: Download FHIR validator
-        if: steps.check_jar_push.outputs.patched_jar_exists != 'true'
         run: ./validator/download-validator.sh
       
       - name: Build and push

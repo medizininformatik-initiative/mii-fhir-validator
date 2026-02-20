@@ -3,7 +3,7 @@ nginx/certs/*.pem
 nginx/certs/*.key
 nginx/certs/*.crt
 
-# Validator JAR - standard version only (patched version tracked with Git LFS)
+# Validator JAR
 validator/validator_cli.jar
 
 # Implementation Guides (can be large)
