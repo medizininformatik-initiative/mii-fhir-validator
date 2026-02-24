@@ -73,10 +73,11 @@ services:
     networks:
       - fhir-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "wget", "--spider", "http://localhost:8080/health" ]
       interval: 10s
-      timeout: 3s
-      retries: 3
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
     profiles: ["blaze"]
 
