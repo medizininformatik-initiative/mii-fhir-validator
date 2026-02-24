@@ -63,9 +63,6 @@ services:
       ENABLE_TERMINOLOGY_LOINC: true
       ENABLE_TERMINOLOGY_SNOMED_CT: true
       SNOMED_CT_RELEASE_PATH: "/snomed-ct-release"
-      ENFORCE_REFERENTIAL_INTEGRITY: true
-      CQL_EXPR_CACHE_SIZE: 128
-      DB_RESOURCE_CACHE_SIZE: 100000
       TERMINOLOGY_SERVICE_GRAPH_CACHE_SIZE: 100000
     volumes:
       - blaze-data:/app/data

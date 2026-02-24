@@ -39,22 +39,18 @@ jobs:
       
       - name: Download MII terminology packages
         run: ./scripts/terminology/get-mii-terminology.sh install
+
+      - name: Download SNOMED CT Release
+        uses: ./.github/actions/speicherwolke-download
+        with:
+          token: ${{ secrets.SCT_DOWNLOAD_TOKEN }}
+          filename: SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip
+
+      - name: Unzip SNOMED CT Release
+        run: unzip SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip -d snomed-ct-release
       
       - name: Start Blaze TermServer (CI mode)
-        run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up -d blaze
-      
-      - name: Wait for Blaze to be ready
-        run: |
-          echo "Waiting for Blaze to start..."
-          for i in {1..30}; do
-            if curl -f http://localhost:8082/health >/dev/null 2>&1; then
-              echo "Blaze is ready!"
-              break
-            fi
-            echo "Attempt $i/30: Blaze not ready yet..."
-            sleep 2
-          done
-          curl -f http://localhost:8082/health || exit 1
+        run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait blaze
       
       - name: Upload MII terminology to Blaze
         run: ./scripts/terminology/upload-terminology.sh
