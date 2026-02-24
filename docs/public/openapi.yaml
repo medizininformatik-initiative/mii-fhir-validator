@@ -1,0 +1,231 @@
+openapi: 3.1.0
+info:
+  title: MII FHIR Validator API
+  description: |
+    HTTP API of the MII FHIR Validator, based on the [HL7 FHIR Validator CLI](https://github.com/hapifhir/org.hl7.fhir.core) running in server mode.
+
+    The validator accepts FHIR resources (JSON or XML) and returns an `OperationOutcome` with validation results.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+externalDocs:
+  description: MII FHIR Validator on GitHub
+  url: https://github.com/medizininformatik-initiative/mii-fhir-validator
+servers:
+  - url: http://localhost:8080
+    description: Local instance
+tags:
+  - name: validation
+    description: FHIR resource validation
+paths:
+  /validateResource:
+    post:
+      tags:
+        - validation
+      summary: Validate a FHIR resource
+      description: |
+        Validates the submitted FHIR resource against the loaded Implementation Guides and returns an `OperationOutcome`.
+
+        - Use `Content-Type` to specify the format of the submitted resource (JSON or XML).
+        - Use `Accept` to specify the desired response format.
+        - Use the `profiles` query parameter to validate against one or more StructureDefinition URLs (comma-separated). If omitted, the validator uses the profiles declared in `meta.profile` of the resource.
+
+        | Severity | Meaning |
+        |---|---|
+        | `fatal` | The issue caused the action to fail and no further checking could be performed. |
+        | `error` | The issue is sufficiently important to cause the action to fail. |
+        | `warning` | The action succeeded but may have been performed suboptimally or not as desired — should be reviewed. |
+        | `information` | Informational only; no relation to success or failure (e.g. "All OK"). |
+      operationId: validateResource
+      externalDocs:
+        description: FHIR Validator CLI – Calling the service
+        url: https://confluence.hl7.org/spaces/FHIR/pages/35718580/Using+the+FHIR+Validator#UsingtheFHIRValidator-Callingtheservice%3A
+      parameters:
+        - name: profiles
+          in: query
+          required: false
+          description: Comma-separated list of StructureDefinition URLs to validate the resource against. Supplements or overrides `meta.profile` in the resource.
+          schema:
+            type: string
+          example: https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus
+        - name: resourceIdRule
+          in: query
+          required: false
+          description: Whether a resource ID is required.
+          schema:
+            type: string
+            enum: [OPTIONAL, REQUIRED, PROHIBITED]
+            default: OPTIONAL
+        - name: anyExtensionsAllowed
+          in: query
+          required: false
+          description: If `false`, unknown extensions not declared in the loaded IGs will produce errors.
+          schema:
+            type: boolean
+            default: true
+        - name: bpWarnings
+          in: query
+          required: false
+          description: Controls the severity level used for best-practice recommendations.
+          schema:
+            type: string
+            enum: [Ignore, Hint, Warning, Error]
+            default: Ignore
+        - name: displayOption
+          in: query
+          required: false
+          description: Controls how `Coding.display` values are validated against the terminology server.
+          schema:
+            type: string
+            enum: [Ignore, Check, CheckCaseAndSpace, CheckCase, CheckSpace]
+            default: Ignore
+      requestBody:
+        description: FHIR resource to validate, serialised as FHIR JSON or FHIR XML.
+        required: true
+        content:
+          application/fhir+json:
+            schema:
+              type: object
+              description: Any FHIR resource serialised as JSON
+            example:
+              resourceType: Observation
+              id: mii-exa-person-observation-vitalstatus
+              meta:
+                security:
+                  - code: HTEST
+                    system: http://terminology.hl7.org/CodeSystem/v3-ActReason
+                    display: test health data
+                profile:
+                  - https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus|2026.0.0
+              category:
+                - coding:
+                    - code: survey
+                      system: http://terminology.hl7.org/CodeSystem/observation-category
+              status: final
+              code:
+                coding:
+                  - code: 67162-8
+                    system: http://loinc.org
+              subject:
+                reference: Patient/mii-exa-person-patient-1
+              encounter:
+                reference: Encounter/mii-exa-fall-kontakt-gesundheitseinrichtung-9
+              effectiveDateTime: "2020-01-08T07:00:00+01:00"
+              valueCodeableConcept:
+                coding:
+                  - code: L
+                    system: https://www.medizininformatik-initiative.de/fhir/core/modul-person/CodeSystem/Vitalstatus
+                    display: Patient lebt
+          application/fhir+xml:
+            schema:
+              type: string
+              format: xml
+              description: Any FHIR resource serialised as XML
+      responses:
+        '200':
+          description: |
+            Validation completed. The `OperationOutcome` contains all issues found.
+            Issues with severity `error` or `fatal` indicate a validation failure.
+            A response containing only `information`-severity issues (e.g. "All OK") indicates success.
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/OperationOutcome'
+              example:
+                resourceType: OperationOutcome
+                text:
+                  status: generated
+                  div: "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p class=\"res-header-id\"><b>OperationOutcome </b></p><p>All OK</p></div>"
+                issue:
+                  - severity: information
+                    code: informational
+                    details:
+                      text: All OK
+            application/fhir+xml:
+              schema:
+                type: string
+                format: xml
+        '400':
+          description: The request body could not be parsed as a FHIR resource.
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/OperationOutcome'
+        '405':
+          description: Method not allowed. Only POST is supported.
+        '500':
+          description: Internal server error.
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/OperationOutcome'
+components:
+  schemas:
+    OperationOutcome:
+      type: object
+      description: FHIR OperationOutcome resource containing validation results.
+      externalDocs:
+        description: FHIR R4 OperationOutcome
+        url: http://hl7.org/fhir/R4/operationoutcome.html
+      required:
+        - resourceType
+        - issue
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - OperationOutcome
+        text:
+          type: object
+          description: "FHIR type: Narrative. Human-readable narrative summary of the resource."
+          properties:
+            status:
+              type: string
+              description: "FHIR type: code. Narrative status — always `generated` for validator output."
+              enum: [generated, extensions, additional, empty]
+            div:
+              type: string
+              description: "FHIR type: xhtml. Limited XHTML content of the narrative."
+        issue:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationOutcomeIssue'
+    OperationOutcomeIssue:
+      type: object
+      description: "FHIR type: BackboneElement (OperationOutcome.issue)"
+      required:
+        - severity
+        - code
+      properties:
+        severity:
+          type: string
+          description: "FHIR type: code (http://hl7.org/fhir/issue-severity)."
+          enum:
+            - fatal
+            - error
+            - warning
+            - information
+        code:
+          type: string
+          description: "FHIR type: code (http://hl7.org/fhir/issue-type)."
+        details:
+          type: object
+          description: "FHIR type: CodeableConcept. Additional details about the issue."
+          properties:
+            text:
+              type: string
+              description: "FHIR type: string. Human-readable description of the issue."
+        diagnostics:
+          type: string
+          description: "FHIR type: string. Additional technical details about the issue, e.g. the offending value or expression."
+        location:
+          type: array
+          description: "FHIR type: string[]. Deprecated in R4B+ in favour of `expression`. XPath or FHIRPath location(s) within the resource where the issue was found."
+          items:
+            type: string
+        expression:
+          type: array
+          description: "FHIR type: string[]. FHIRPath expression(s) identifying the location of the issue."
+          items:
+            type: string

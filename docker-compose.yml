@@ -1,7 +1,7 @@
 services:
   validator:
     # Use published image from GitHub Container Registry
-    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.1
+    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.3
     # Or build locally from source
     build:
       context: ./validator
@@ -43,9 +43,8 @@ services:
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:/root/.fhir/packages
-    depends_on:
-      nginx:
-        condition: service_healthy
+      - ./nginx/certs:/certs:ro
+    # depends_on nginx removed: validator connects directly to ontoserver via JVM proxy+mTLS
     networks:
       - fhir-network
     restart: unless-stopped
