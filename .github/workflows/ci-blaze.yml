@@ -4,7 +4,9 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches:
+    - main
+    - develop
 
 jobs:
   test:
@@ -26,20 +28,7 @@ jobs:
       run: ./scripts/terminology/get-mii-terminology.sh install
     
     - name: Start services with Blaze profile (CI mode - SNOMED disabled)
-      run: docker compose --profile blaze -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up -d
-    
-    - name: Wait for Blaze to be ready
-      run: |
-        echo "Waiting for Blaze to start..."
-        for i in {1..30}; do
-          if curl -f http://localhost:8082/fhir/metadata >/dev/null 2>&1; then
-            echo "Blaze is ready!"
-            break
-          fi
-          echo "Attempt $i/30: Blaze not ready yet..."
-          sleep 2
-        done
-        curl -f http://localhost:8082/fhir/metadata || exit 1
+      run: docker compose --profile blaze -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait
     
     - name: Upload MII terminology to Blaze
       run: ./scripts/terminology/upload-terminology.sh
