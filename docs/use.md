@@ -44,8 +44,6 @@ After starting Blaze for the first time, upload the required MII terminology pac
 
 Without this step, terminology-dependent validation (CodeSystem lookups, ValueSet bindings) will fail.
 
----
-
 ## Validating a FHIR Resource
 
 The validator exposes a single HTTP endpoint on port `8080`.
@@ -83,8 +81,6 @@ curl -X POST http://localhost:8080/validateResource \
 
 The validator returns an `OperationOutcome` resource with validation results.
 
----
-
 ## Using a Custom `fhir-settings.json`
 
 To connect to an HTTP terminology server not listed in the default `fhir-settings.json`, create your own file and mount it into the container:
@@ -112,8 +108,6 @@ docker run -d -p 8080:8080 \
 
 > **Note:** The `url` in `fhir-settings.json` must match or be a prefix of your `TX_SERVER` value.
 
----
-
 ## Loading Additional Implementation Guides
 
 To load local IG packages from the `igs/` directory, set `IG_PARAMS` in `.env`:
@@ -127,8 +121,6 @@ For multiple IGs:
 ```bash
 IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
 ```
-
----
 
 ## Offline Operation
 
@@ -145,5 +137,3 @@ docker compose down
 ```
 
 The package cache is persisted in the `fhir-package-cache` Docker volume and will be available offline. SNOMED CT release files must also be present in `snomed-ct-release/` for Blaze to start.
-
----

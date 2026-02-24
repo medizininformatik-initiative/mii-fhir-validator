@@ -43,23 +43,7 @@ JVM options passed to the validator process. Increase `-Xmx` if you encounter ou
 
 Space-separated list of `-ig` parameters specifying which Implementation Guides to load. Each entry is in the form `-ig <package-id>#<version>` or `-ig /path/to/package.tgz` for local files.
 
-See `.env.default` for the full default list of pre-configured MII IGs.
-
-**Default (from `.env.default`):**
-```
--ig de.basisprofil.r4#1.5.4
--ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0
--ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
--ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.1
--ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.0
--ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.1-rc.1
--ig de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0
--ig de.medizininformatikinitiative.kerndatensatz.biobank#2026.0.0
--ig de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4
--ig de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.1
--ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.1
--ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.1
-```
+See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
 ---
 
@@ -97,15 +81,14 @@ The following environment variables control the Blaze container's behaviour (set
 | Variable | Description | Default |
 |---|---|---|
 | `JAVA_TOOL_OPTIONS` | JVM options for Blaze | `-Xmx8g` |
+| `DB_BLOCK_CACHE_SIZE` | RocksDB block cache size in MB | `1024` |
 | `ENABLE_TERMINOLOGY_SERVICE` | Enable the terminology service | `true` |
 | `ENABLE_TERMINOLOGY_LOINC` | Enable LOINC support | `true` |
 | `ENABLE_TERMINOLOGY_SNOMED_CT` | Enable SNOMED CT support | `true` |
 | `SNOMED_CT_RELEASE_PATH` | Path to the SNOMED CT release directory inside the container | `/snomed-ct-release` |
-| `ENFORCE_REFERENTIAL_INTEGRITY` | Enforce referential integrity on resource upload | `true` |
+| `TERMINOLOGY_SERVICE_GRAPH_CACHE_SIZE` | Number of entries in the terminology graph cache | `100000` |
 
 The SNOMED CT release files must be placed in the `snomed-ct-release/` directory on the host. They are mounted read-only into the Blaze container.
-
----
 
 ## Ontoserver Profile (nginx)
 

@@ -1,6 +1,5 @@
 # Docker Compose override for CI/CD environments
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.ci.yml up
-# This configuration disables SNOMED CT (not in version control)
 
 services:
   validator:

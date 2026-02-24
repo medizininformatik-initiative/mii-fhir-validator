@@ -3,7 +3,7 @@ layout: home
 title: MII FHIR Validator
 hero:
   name: MII FHIR Validator
-  tagline: A FHIR validation service pre-configured for MII Implementation Guides — bring your own terminology server
+  tagline: A FHIR validation service pre-configured for MII Implementation Guides
   actions:
     - theme: brand
       text: Overview
