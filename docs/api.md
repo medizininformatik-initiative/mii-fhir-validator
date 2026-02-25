@@ -18,18 +18,13 @@ h2#servers + div,
     display: none !important;
 }
 
-/* 4. Hide the samples header */
-.OAPathContentEnd h2[id$="-samples"] {
-    display: none !important;
-}
-
-/* 5. Hide the code snippet blocks (curl, etc.) */
-.OAPathContentEnd .vp-code-group {
-    display: none !important;
-}
-
-/* 6. Hide the playground section */
+/* 4. Hide the playground section */
 .OAPathContentEnd .flex.flex-col.gap-2 {
+    display: none !important;
+}
+
+/* 5. Hide empty Schema tabs (request body has no schema defined) */
+.OARequestBody .vp-code-group .tabs label:first-child {
     display: none !important;
 }
 
