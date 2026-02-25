@@ -85,45 +85,63 @@ paths:
         required: true
         content:
           application/fhir+json:
-            schema:
-              type: object
-              description: Any FHIR resource serialised as JSON
-              example:
-                resourceType: Observation
-                id: mii-exa-person-observation-vitalstatus
-                meta:
-                  security:
-                    - code: HTEST
-                      system: http://terminology.hl7.org/CodeSystem/v3-ActReason
-                      display: test health data
-                  profile:
-                    - https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus|2026.0.0
-                category:
-                  - coding:
-                      - code: survey
-                        system: http://terminology.hl7.org/CodeSystem/observation-category
-                status: final
-                code:
-                  coding:
-                    - code: 67162-8
-                      system: http://loinc.org
-                subject:
-                  reference: Patient/mii-exa-person-patient-1
-                encounter:
-                  reference: Encounter/mii-exa-fall-kontakt-gesundheitseinrichtung-9
-                effectiveDateTime: "2020-01-08T07:00:00+01:00"
-                valueCodeableConcept:
-                  coding:
-                    - code: L
-                      system: https://www.medizininformatik-initiative.de/fhir/core/modul-person/CodeSystem/Vitalstatus
-                      display: Patient lebt
-          application/fhir+xml:
-            schema:
-              type: string
-              format: xml
-              description: Any FHIR resource serialised as XML
+            examples:
+              Resource:
+                summary: Example Observation
+                value: |-
+                  {
+                    "resourceType": "Observation",
+                    "id": "mii-exa-person-observation-vitalstatus",
+                    "meta": {
+                      "security": [
+                        {
+                          "code": "HTEST",
+                          "system": "http://terminology.hl7.org/CodeSystem/v3-ActReason",
+                          "display": "test health data"
+                        }
+                      ],
+                      "profile": [
+                        "https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus|2026.0.0"
+                      ]
+                    },
+                    "category": [
+                      {
+                        "coding": [
+                          {
+                            "code": "survey",
+                            "system": "http://terminology.hl7.org/CodeSystem/observation-category"
+                          }
+                        ]
+                      }
+                    ],
+                    "status": "final",
+                    "code": {
+                      "coding": [
+                        {
+                          "code": "67162-8",
+                          "system": "http://loinc.org"
+                        }
+                      ]
+                    },
+                    "subject": {
+                      "reference": "Patient/mii-exa-person-patient-1"
+                    },
+                    "encounter": {
+                      "reference": "Encounter/mii-exa-fall-kontakt-gesundheitseinrichtung-9"
+                    },
+                    "effectiveDateTime": "2020-01-08T07:00:00+01:00",
+                    "valueCodeableConcept": {
+                      "coding": [
+                        {
+                          "code": "L",
+                          "system": "https://www.medizininformatik-initiative.de/fhir/core/modul-person/CodeSystem/Vitalstatus",
+                          "display": "Patient lebt"
+                        }
+                      ]
+                    }
+                  }
       responses:
-        '200':
+        "200":
           description: |
             Validation completed. The `OperationOutcome` contains all issues found.
             Issues with severity `error` or `fatal` indicate a validation failure.
@@ -131,25 +149,41 @@ paths:
           content:
             application/fhir+json:
               schema:
-                $ref: '#/components/schemas/OperationOutcome'
-            application/fhir+xml:
-              schema:
-                type: string
-                format: xml
-        '400':
-          description: The request body could not be parsed as a FHIR resource.
+                $ref: "#/components/schemas/OperationOutcome"
+              examples:
+                Response:
+                  summary: Successful validation (All OK)
+                  value: |-
+                    {
+                      "resourceType": "OperationOutcome",
+                      "text": {
+                        "status": "generated",
+                        "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>All OK</p></div>"
+                      },
+                      "issue": [
+                        {
+                          "severity": "information",
+                          "code": "informational",
+                          "details": {
+                            "text": "All OK"
+                          }
+                        }
+                      ]
+                    }
+        "400":
+          description: Bad Request - Invalid parameters or malformed resource.
           content:
             application/fhir+json:
               schema:
-                $ref: '#/components/schemas/OperationOutcome'
-        '405':
+                $ref: "#/components/schemas/OperationOutcome"
+        "405":
           description: Method not allowed. Only POST is supported.
-        '500':
+        "500":
           description: Internal server error.
           content:
             application/fhir+json:
               schema:
-                $ref: '#/components/schemas/OperationOutcome'
+                $ref: "#/components/schemas/OperationOutcome"
 components:
   schemas:
     OperationOutcome:
@@ -159,7 +193,7 @@ components:
         resourceType: OperationOutcome
         text:
           status: generated
-          div: "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p>All OK</p></div>"
+          div: '<div xmlns="http://www.w3.org/1999/xhtml"><p>All OK</p></div>'
         issue:
           - severity: information
             code: informational
@@ -190,7 +224,7 @@ components:
         issue:
           type: array
           items:
-            $ref: '#/components/schemas/OperationOutcomeIssue'
+            $ref: "#/components/schemas/OperationOutcomeIssue"
     OperationOutcomeIssue:
       type: object
       description: "FHIR type: BackboneElement (OperationOutcome.issue)"
