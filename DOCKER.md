@@ -124,7 +124,7 @@ Docker Compose configuration with `.env` support:
 ```yaml
 services:
   blaze:
-    image: samply/blaze:latest
+    image: samply/blaze:1.6.0@sha256:76b8d0947a8463921e4cd5db291b14d58c221d4ca474a582eea3f16294ef8b3d
     container_name: blaze-terminology
     ports:
       - "8082:8080"
