@@ -1,10 +1,20 @@
 FROM eclipse-temurin:17-jre
 
+LABEL org.opencontainers.image.title="MII FHIR Validator"
+LABEL org.opencontainers.image.description="A FHIR validation service pre-configured for MII Implementation Guides"
+LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.io/mii-fhir-validator/"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
+
 # Install required tools
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
 WORKDIR /app
+
+# Copy license files
+COPY LICENSE /licenses/LICENSE
+COPY THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 
 # Copy validator JAR
 COPY validator_cli*.jar /app/validator_cli.jar
