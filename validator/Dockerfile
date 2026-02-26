@@ -17,10 +17,7 @@ COPY LICENSE /licenses/LICENSE
 COPY THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 
 # Copy validator JAR
-COPY validator_cli*.jar /app/validator_cli.jar
-
-# Copy FHIR settings file
-COPY fhir-settings.json /app/fhir-settings.json
+COPY validator/validator_cli*.jar /app/validator_cli.jar
 
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
@@ -49,6 +46,7 @@ EXPOSE 8080
 # Default IG parameters - can be overridden via IG_PARAMS environment variable
 ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 
-# Run validator in server mode with HTTP support via fhir-settings.json
-# Default parameters - can be overridden via environment variables
-ENTRYPOINT ["/bin/bash", "-c", "java ${JAVA_OPTS:--Xmx4g} -jar validator_cli.jar -server 8080 -version ${FHIR_VERSION:-4.0} ${TX_SERVER:+-tx $TX_SERVER} -fhir-settings /app/fhir-settings.json ${IG_PARAMS:-$DEFAULT_IG_PARAMS} -authorise-non-conformant-tx-servers"]
+# Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
+COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]

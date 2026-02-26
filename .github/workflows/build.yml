@@ -31,7 +31,8 @@ jobs:
       - name: Build and export to Docker
         uses: docker/build-push-action@v5
         with:
-          context: ./validator
+          context: .
+          file: validator/Dockerfile
           load: true
           tags: mii-fhir-validator:test
           cache-from: type=gha
@@ -163,7 +164,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./validator
+          context: .
+          file: validator/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
