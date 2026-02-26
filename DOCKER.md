@@ -27,11 +27,9 @@ docker run -p 8080:8080 \
 
 The image comes with MII Implementation Guides pre-configured. These packages are downloaded and cached during the Docker build process.
 
-For the complete list of pre-configured IGs and their versions, see:
-- [`validator/Dockerfile`](validator/Dockerfile) - `ARG IG_LIST` section
-- [`.env.default`](.env.default) - `IG_PARAMS` variable
+For the complete list of pre-configured IGs and their versions, see [`.env.default`](.env.default) — `IG_PARAMS` variable.
 
-You can override these at runtime using the `IG_PARAMS` environment variable.
+You can override the IG list at runtime using the `IG_PARAMS` environment variable.
 
 ### HTTP Support
 

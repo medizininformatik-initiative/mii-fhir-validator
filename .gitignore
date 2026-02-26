@@ -44,3 +44,6 @@ docker-compose.yml.example
 
 # Environment variable files
 .env
+
+# scripts
+scripts/sync-igs.sh
