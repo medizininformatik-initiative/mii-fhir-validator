@@ -31,7 +31,7 @@ The validator runs alongside a local [Blaze](https://samply.github.io/blaze/) FH
 │  │  FHIR Validator  │ ──────────► │   Blaze   │ │
 │  │  :8080           │   TX calls  │   :8080   │ │
 │  └──────────────────┘             └───────────┘ │
-│         ▲  (→ host:8080)           (→ host:8082) │
+│         ▲  (→ host:8080)          (→ host:8082) │
 └─────────┼───────────────────────────────────────┘
           │  POST /validateResource
      Client (localhost:8080)
@@ -50,7 +50,7 @@ The validator connects to an nginx reverse proxy that authenticates to the MII S
 │  │  FHIR Validator  │ ──────────► │  nginx (mTLS proxy)   │  │
 │  │  :8080           │             │  :80                  │  │
 │  └──────────────────┘             └───────────────────────┘  │
-│           ▲                                  │ HTTPS + cert   │
+│           ▲                                  │ HTTPS + cert  │
 └───────────┼──────────────────────────────────┼───────────────┘
             │                                  ▼
        Client                  ontoserver.mii-termserv.de
