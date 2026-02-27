@@ -64,35 +64,60 @@ jobs:
     
     - name: Run validation test
       run: |
-        # Test with a MII Observation resource
-        echo "Testing: valid-observation.json"
-        
-        # POST to validator and capture response
-        RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
-          -H "Content-Type: application/fhir+json" \
-          -H "Accept: application/fhir+json" \
-          -d @.github/test-resources/valid-observation.json)
-        
-        echo "Validation response:"
-        echo "$RESPONSE" | jq .
-        
-        # Check that we got an OperationOutcome
-        RESOURCE_TYPE=$(echo "$RESPONSE" | jq -r '.resourceType')
-        if [ "$RESOURCE_TYPE" != "OperationOutcome" ]; then
-          echo "ERROR: Expected OperationOutcome, got $RESOURCE_TYPE"
+        FAILED=0
+        PASSED=0
+        mkdir -p validation-results
+
+        for RESOURCE_FILE in .github/test-resources/*.json; do
+          BASENAME=$(basename "$RESOURCE_FILE" .json)
+          echo "Testing: $RESOURCE_FILE"
+
+          # POST to validator and capture response
+          RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
+            -H "Content-Type: application/fhir+json" \
+            -H "Accept: application/fhir+json" \
+            -d @"$RESOURCE_FILE")
+
+          echo "Validation response:"
+          echo "$RESPONSE" | jq .
+
+          # Save OperationOutcome to file
+          echo "$RESPONSE" | jq . > "validation-results/OperationOutcome-${BASENAME}.json"
+
+          # Check that we got an OperationOutcome
+          RESOURCE_TYPE=$(echo "$RESPONSE" | jq -r '.resourceType')
+          if [ "$RESOURCE_TYPE" != "OperationOutcome" ]; then
+            echo "ERROR: Expected OperationOutcome, got $RESOURCE_TYPE"
+            FAILED=$((FAILED + 1))
+            continue
+          fi
+
+          # Check for fatal/error severity
+          FATAL_ERRORS=$(echo "$RESPONSE" | jq '[.issue[] | select(.severity == "fatal" or .severity == "error")] | length')
+
+          if [ "$FATAL_ERRORS" -gt 0 ]; then
+            echo "✗ $RESOURCE_FILE failed with $FATAL_ERRORS fatal/error issue(s):"
+            echo "$RESPONSE" | jq '.issue[] | select(.severity == "fatal" or .severity == "error")'
+            FAILED=$((FAILED + 1))
+          else
+            echo "✓ $RESOURCE_FILE passed (no fatal/error issues)"
+            PASSED=$((PASSED + 1))
+          fi
+        done
+
+        echo ""
+        echo "Results: $PASSED passed, $FAILED failed"
+        if [ "$FAILED" -gt 0 ]; then
           exit 1
         fi
-        
-        # Check for fatal/error severity (warnings and information are acceptable)
-        FATAL_ERRORS=$(echo "$RESPONSE" | jq '[.issue[] | select(.severity == "fatal" or .severity == "error")] | length')
-        
-        if [ "$FATAL_ERRORS" -gt 0 ]; then
-          echo "✗ Validation failed with $FATAL_ERRORS fatal/error issue(s):"
-          echo "$RESPONSE" | jq '.issue[] | select(.severity == "fatal" or .severity == "error")'
-          exit 1
-        fi
-        
-        echo "✓ Validation passed (no fatal/error issues)"
+
+    - name: Upload OperationOutcome artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: validation-results
+        path: validation-results/
+        retention-days: 1
     
     - name: Show logs on failure
       if: failure()
