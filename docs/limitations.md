@@ -44,10 +44,8 @@ When starting without internet access, the FHIR Validator CLI must have all depe
 
 The MII SU-TermServ Ontoserver (`ontoserver.mii-termserv.de`) is intended for development purposes only (small numbers of validation requests, no personal/patient data). Using it for batch/production validation in ETL processes violates the terms of use.
 
-## HTTP Terminology Servers Must Be Allow-listed in `fhir-settings.json`
+## HTTP Terminology Servers Require `allowHttp` Configuration
 
-The FHIR Validator CLI rejects HTTP (non-HTTPS) connections to terminology servers unless they are explicitly listed in `fhir-settings.json` with `"allowHttp": true`. The default configuration allows `http://blaze-terminology:8080/fhir` and `http://nginx/fhir`. Any other HTTP server will be rejected.
-
-**Workaround:** Mount a custom `fhir-settings.json` with your server URL listed.
+The FHIR Validator CLI rejects HTTP (non-HTTPS) connections to terminology servers unless they are explicitly configured with `"allowHttp": true`. The container handles this automatically: when `TX_SERVER` starts with `http://`, the required configuration is generated at startup for that URL. Any HTTP server can be used by simply setting `TX_SERVER` in `.env`.
 
 ---

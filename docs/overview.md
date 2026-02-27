@@ -8,7 +8,7 @@ The published image provides:
 
 - The FHIR Validator CLI exposed as an HTTP service
 - Pre-configured and pre-cached MII Implementation Guides
-- HTTP terminology server support via `fhir-settings.json` (`allowHttp`)
+- HTTP terminology server support (`allowHttp` auto-configured from `TX_SERVER`)
 - Configurable via environment variables (`TX_SERVER`, `IG_PARAMS`, `JAVA_OPTS`, …)
 
 This repository also provides a **`docker-compose.yml`** as a convenience setup for local development and offline use. It bundles a [Blaze](https://samply.github.io/blaze/) FHIR server as a local terminology service, and an optional nginx reverse proxy for authenticated access to the MII Ontoserver.

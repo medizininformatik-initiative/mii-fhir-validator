@@ -81,32 +81,16 @@ curl -X POST http://localhost:8080/validateResource \
 
 The validator returns an `OperationOutcome` resource with validation results.
 
-## Using a Custom `fhir-settings.json`
+## Using a Custom HTTP Terminology Server
 
-To connect to an HTTP terminology server not listed in the default `fhir-settings.json`, create your own file and mount it into the container:
-
-```json
-{
-  "servers": [
-    {
-      "url": "http://my-terminology-server:8080/fhir",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    }
-  ]
-}
-```
+To connect to any HTTP terminology server, set `TX_SERVER` to the server's URL — no additional configuration needed. The container automatically enables HTTP support for the configured URL:
 
 ```bash
 docker run -d -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
-  -v /path/to/fhir-settings.json:/app/fhir-settings.json:ro \
   --network your-network \
   ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
 ```
-
-> **Note:** The `url` in `fhir-settings.json` must match or be a prefix of your `TX_SERVER` value.
 
 ## Loading Additional Implementation Guides
 

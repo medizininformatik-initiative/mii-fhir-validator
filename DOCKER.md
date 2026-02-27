@@ -2,8 +2,6 @@
 
 Docker image for the FHIR Validator configured for MII (Medizininformatik-Initiative) Implementation Guides.
 
-This validator supports HTTP connections to terminology servers via the `allowHttp` feature configured in `fhir-settings.json`.
-
 ## Quick Start
 
 ```bash
@@ -33,56 +31,27 @@ You can override the IG list at runtime using the `IG_PARAMS` environment variab
 
 ### HTTP Support
 
-This validator allows HTTP connections to terminology servers. The allowed servers are configured in `/app/fhir-settings.json` inside the container:
+When `TX_SERVER` is set to an `http://` URL, the container automatically generates a `fhir-settings.json` at startup with `allowHttp: true` for that server.
 
-```json
-{
-  "servers": [
-    {
-      "url": "http://blaze-terminology:8080/fhir",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    }
-  ]
-}
-```
-
-The validator will accept HTTP connections to any terminology server that matches the configured URLs. For custom setups, you can mount your own `fhir-settings.json`.
+For HTTPS servers (or when `TX_SERVER` is unset), no `fhir-settings.json` is generated.
 
 ### Custom HTTP Terminology Server
 
-To connect to your own HTTP terminology server, create a custom `fhir-settings.json`:
-
-```json
-{
-  "servers": [
-    {
-      "url": "http://my-terminology-server:8080/fhir",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    }
-  ]
-}
-```
-
-Then mount it when running the container:
+To connect to any HTTP terminology server, just set `TX_SERVER`:
 
 ```bash
 docker run -d --name fhir-validator \
   -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
-  -v /path/to/fhir-settings.json:/app/fhir-settings.json:ro \
   --network your-network \
   ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
 ```
 
-**Note:** The `url` in `fhir-settings.json` must match or be a prefix of your `TX_SERVER` value.
+The container will automatically allow the HTTP connection for the configured URL.
 
 ### HTTPS Terminology Server
 
-For HTTPS servers, you don't need custom `fhir-settings.json`:
+For HTTPS servers, no extra configuration is needed:
 
 ```bash
 docker run -d --name fhir-validator \
@@ -153,9 +122,6 @@ services:
       - FHIR_VERSION=${FHIR_VERSION}
       - TX_SERVER=${TX_SERVER}
       - IG_PARAMS=${IG_PARAMS}
-    # Optional: mount custom fhir-settings.json for different HTTP servers
-    # volumes:
-    #   - ./fhir-settings.json:/app/fhir-settings.json:ro
     depends_on:
       blaze:
         condition: service_healthy
