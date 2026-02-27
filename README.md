@@ -107,7 +107,7 @@ The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology s
 
 **Architecture:**
 - **Blaze** runs on HTTP (accessible on port 8082)
-- **Validator** connects directly to Blaze via HTTP using the `allowHttp` feature configured in `fhir-settings.json`
+- **Validator** connects directly to Blaze via HTTP (`allowHttp` is enabled automatically when `TX_SERVER` uses `http://`)
 
 ### Validator Configuration
 

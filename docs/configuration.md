@@ -15,7 +15,7 @@ URL of the terminology server used for terminology validation.
 
 For the local **Blaze** profile, this points to the Blaze container inside the Docker network. For the **Ontoserver** profile, this points to the nginx proxy that forwards requests to `ontoserver.mii-termserv.de` using mTLS.
 
-HTTP connections are enabled via the `allowHttp` flag in `fhir-settings.json`.
+HTTP connections are enabled automatically when `TX_SERVER` starts with `http://` — the container generates the required `fhir-settings.json` at startup.
 
 **Default (Blaze profile):** `http://blaze-terminology:8080/fhir`
 
@@ -47,30 +47,11 @@ See [`.env.default`](../.env.default) for the full default list of pre-configure
 
 ---
 
-## HTTP Allowlist (`fhir-settings.json`)
+## HTTP Support (`allowHttp`)
 
-The FHIR Validator CLI only allows HTTP (non-HTTPS) connections to terminology servers that are explicitly listed in `fhir-settings.json`. The default file contains entries for both the Blaze and Ontoserver (nginx proxy) URLs:
+The FHIR Validator CLI requires explicit `allowHttp: true` configuration to connect to HTTP (non-HTTPS) terminology servers. The container handles this automatically: when `TX_SERVER` starts with `http://`, a `fhir-settings.json` is generated at startup with `allowHttp: true` for that URL and passed to the validator. For HTTPS or unset `TX_SERVER`, no `fhir-settings.json` is generated.
 
-```json
-{
-  "servers": [
-    {
-      "url": "http://blaze-terminology:8080/fhir",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    },
-    {
-      "url": "http://nginx/fhir",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    }
-  ]
-}
-```
-
-To use a different HTTP terminology server, mount a custom `fhir-settings.json` into the container at `/app/fhir-settings.json`. The `url` in the settings must match or be a prefix of your `TX_SERVER` value.
+No manual `fhir-settings.json` management is needed — setting `TX_SERVER` in `.env` is sufficient.
 
 ---
 
