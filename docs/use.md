@@ -83,7 +83,7 @@ The validator returns an `OperationOutcome` resource with validation results.
 
 ## Using a Custom HTTP Terminology Server
 
-To connect to any HTTP terminology server, set `TX_SERVER` to the server's URL — no additional configuration needed. The container automatically enables HTTP support for the configured URL:
+To connect to any HTTP terminology server, set `TX_SERVER` to an `http://` URL. The container entrypoint script detects this at startup and automatically generates the required `allowHttp` configuration for that URL:
 
 ```bash
 docker run -d -p 8080:8080 \

@@ -45,15 +45,11 @@ Space-separated list of `-ig` parameters specifying which Implementation Guides 
 
 See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
----
-
 ## HTTP Support (`allowHttp`)
 
 The FHIR Validator CLI requires explicit `allowHttp: true` configuration to connect to HTTP (non-HTTPS) terminology servers. The container handles this automatically: when `TX_SERVER` starts with `http://`, a `fhir-settings.json` is generated at startup with `allowHttp: true` for that URL and passed to the validator. For HTTPS or unset `TX_SERVER`, no `fhir-settings.json` is generated.
 
 No manual `fhir-settings.json` management is needed — setting `TX_SERVER` in `.env` is sufficient.
-
----
 
 ## Blaze Terminology Server
 
