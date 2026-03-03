@@ -85,7 +85,7 @@ jobs:
           fi
           
           # Run a validation test
-          echo "Testing validation with MII Observation..."
+          echo "Testing validation service..."
           RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
             -H "Content-Type: application/fhir+json" \
             -H "Accept: application/fhir+json" \
