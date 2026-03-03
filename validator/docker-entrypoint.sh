@@ -29,4 +29,6 @@ exec java ${JAVA_OPTS:--Xmx4g} -jar /app/validator_cli.jar \
   ${TX_SERVER:+-tx $TX_SERVER} \
   $FHIR_SETTINGS_ARG \
   ${IG_PARAMS:-$DEFAULT_IG_PARAMS} \
-  -authorise-non-conformant-tx-servers
+  -authorise-non-conformant-tx-servers \
+  -advisor-file /app/validator/advisor.json \
+  -verbose

@@ -17,6 +17,8 @@ services:
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:/root/.fhir/packages
+      # Optional: override the built-in advisor configuration
+      # - ./validator/advisor.json:/app/validator/advisor.json:ro
     depends_on:
       blaze:
         condition: service_healthy
@@ -44,6 +46,8 @@ services:
       - ./igs:/igs:ro
       - fhir-package-cache:/root/.fhir/packages
       - ./nginx/certs:/certs:ro
+      # Optional: override the built-in advisor configuration
+      # - ./validator/advisor.json:/app/validator/advisor.json:ro
     # depends_on nginx removed: validator connects directly to ontoserver via JVM proxy+mTLS
     networks:
       - fhir-network

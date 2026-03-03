@@ -46,6 +46,9 @@ EXPOSE 8080
 # Default IG parameters - can be overridden via IG_PARAMS environment variable
 ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 
+# Advisor configuration for suppressing specific validation messages
+COPY validator/advisor.json /app/validator/advisor.json
+
 # Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
 COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh

@@ -45,6 +45,23 @@ Space-separated list of `-ig` parameters specifying which Implementation Guides 
 
 See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
+## Validator Advisor File (`advisor.json`)
+
+The validator is started with `-advisor-file /app/validator/advisor.json`.
+The default advisor file is included in the image at `validator/advisor.json`.
+
+If you want to customize suppressions/rules without rebuilding the image, override the file via bind mount in `docker-compose.yml`:
+
+```yaml
+services:
+	validator:
+		volumes:
+			- ./validator/advisor.json:/app/validator/advisor.json:ro
+```
+
+For the complete advisor file format and matching behavior, see the HL7 Validator Advisor Framework documentation:
+[https://confluence.hl7.org/spaces/FHIR/pages/281216179/Validator+Advisor+Framework](https://confluence.hl7.org/spaces/FHIR/pages/281216179/Validator+Advisor+Framework)
+
 ## HTTP Support (`allowHttp`)
 
 The FHIR Validator CLI requires explicit `allowHttp: true` configuration to connect to HTTP (non-HTTPS) terminology servers. The container handles this automatically: when `TX_SERVER` starts with `http://`, a `fhir-settings.json` is generated at startup with `allowHttp: true` for that URL and passed to the validator. For HTTPS or unset `TX_SERVER`, no `fhir-settings.json` is generated.
