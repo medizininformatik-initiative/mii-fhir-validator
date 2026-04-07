@@ -2,32 +2,23 @@
 
 To run this project locally for development, the following steps need to be followed:
 
-1. Download FHIR Validator JAR
-2. Add SNOMED CT release files
-3. Download MII terminology packages
-4. Configure environment
-5. Start services
+1. Add SNOMED CT release files
+2. Download MII terminology packages
+3. Configure environment
+4. Start services
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - A SNOMED CT International Edition release (downloadable from e.g. https://www.nlm.nih.gov/healthit/snomedct/)
 
-## Step 1: Download the FHIR Validator JAR
-
-```bash
-./validator/download-validator.sh
-```
-
-This downloads `validator_cli.jar` into the `validator/` directory.
-
-## Step 2: Add SNOMED CT Release Files
+## Step 1: Add SNOMED CT Release Files
 
 Download the SNOMED CT International Edition and extract the release package into the `snomed-ct-release/` directory. The directory should contain a subdirectory named `SnomedCT_InternationalRF2_PRODUCTION_<date>/`.
 
 See `snomed-ct-release/README.md` for detailed instructions.
 
-## Step 3: Download MII Terminology Packages
+## Step 2: Download MII Terminology Packages
 
 ```bash
 ./scripts/terminology/get-mii-terminology.sh install
@@ -35,7 +26,7 @@ See `snomed-ct-release/README.md` for detailed instructions.
 
 This downloads the CodeSystems and ValueSets needed for MII validation into a local directory for later upload to Blaze.
 
-## Step 4: Configure Environment
+## Step 3: Configure Environment
 
 ```bash
 cp .env.default .env
@@ -44,7 +35,7 @@ cp .env.default .env
 
 Docker Compose reads `.env` automatically. The `.env.default` file contains sensible defaults and is tracked in git; `.env` is gitignored for local customisation.
 
-## Step 5: Start Services
+## Step 4: Start Services
 
 ```bash
 docker compose --profile blaze up -d
@@ -54,7 +45,7 @@ This starts:
 - **validator** – FHIR Validator on port `8080`
 - **blaze** – Blaze terminology server on port `8082`
 
-## Step 6: Upload Terminology to Blaze
+## Step 5: Upload Terminology to Blaze
 
 Wait for Blaze to report as healthy, then upload the terminology resources:
 
@@ -74,9 +65,6 @@ Wait for Blaze to report as healthy, then upload the terminology resources:
 To build the validator image from source instead of pulling from GHCR:
 
 ```bash
-cd validator
-./download-validator.sh
-cd ..
 docker compose build validator
 ```
 

@@ -10,24 +10,12 @@ Start the FHIR Validator with the local Blaze terminology server:
 docker compose --profile blaze up -d
 ```
 
-Or use the helper script:
-
-```bash
-./scripts/start-validator-with-blaze.sh
-```
-
 ### Ontoserver Profile
 
 Start the FHIR Validator with the MII Ontoserver via nginx proxy (requires client certificates in `nginx/certs/`):
 
 ```bash
 docker compose --profile ontoserver up -d
-```
-
-Or use the helper script:
-
-```bash
-./scripts/start-validator-with-ontoserver.sh
 ```
 
 ### Loading Terminology Resources into Blaze
@@ -89,7 +77,7 @@ To connect to any HTTP terminology server, set `TX_SERVER` to an `http://` URL. 
 docker run -d -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
   --network your-network \
-  ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
+  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
 ```
 
 ## Loading Additional Implementation Guides

@@ -1,3 +1,8 @@
+FROM alpine AS fetch-validator
+ARG VALIDATOR_VERSION=6.9.4
+RUN wget -O /validator_cli.jar \
+  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
+
 FROM eclipse-temurin:17-jre
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
@@ -17,7 +22,7 @@ COPY LICENSE /licenses/LICENSE
 COPY THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 
 # Copy validator JAR
-COPY validator/validator_cli*.jar /app/validator_cli.jar
+COPY --from=fetch-validator /validator_cli.jar /app/validator_cli.jar
 
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
