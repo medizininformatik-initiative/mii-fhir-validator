@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare version
+        id: prep-version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.prep-version.outputs.version }}"
+          draft: true
+          prerelease: ${{ contains(steps.prep-version.outputs.version, '-') }}
+          generate_release_notes: true
+          body: |
+            ## MII FHIR Validator ${{ steps.prep-version.outputs.version }}
+
+            ### Docker Image
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ steps.prep-version.outputs.version }}
+            ```
+
+            Or update the image tag in `docker-compose.yml`:
+            ```yaml
+            image: ghcr.io/${{ github.repository }}:${{ steps.prep-version.outputs.version }}
+            ```
+
+            ### Changes
