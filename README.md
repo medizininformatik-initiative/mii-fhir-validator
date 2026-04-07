@@ -2,43 +2,28 @@
 >
 > ➡️ Go here: https://github.com/medizininformatik-initiative/mii-fhir-validator/tree/develop
 
-# MII FHIR Validator Service
+# MII FHIR Validator
 
-A locally deployable FHIR validation service. This service includes:
-- FHIR Validator as a local HTTP service (with allowHttp support)
-- Blaze terminology service (default, no authentication required)
-- Support for offline Implementation Guides
+A locally deployable FHIR validation service pre-configured for MII Implementation Guides. Pre-built images are published to GitHub Container Registry.
 
-**Current Configuration:** This setup uses **Blaze** as the default terminology server for local development and validation with direct HTTP connectivity. For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`), see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
+`docker compose` starts two services:
+- **Validator** — FHIR Validator HTTP service on port `8080`, pre-loaded with MII IGs
+- **Blaze** — local FHIR terminology server on port `8082`
 
-## Docker Image
+For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`) instead of local Blaze, see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
 
-Pre-built Docker images are available on GitHub Container Registry. These images include the FHIR Validator with MII Implementation Guides pre-configured.
-
-**Quick Start with Docker:**
-```bash
-docker run -p 8080:8080 \
-  -e TX_SERVER=http://your-terminology-server:8080/fhir \
-  ghcr.io/medizininformatik-initiative/mii-fhir-validator:latest
-```
-
-For detailed Docker usage, configuration options, and examples, see **[DOCKER.md](DOCKER.md)**.
-
-## Local Development Setup
-
-The following instructions are for running the complete local development setup with Blaze terminology server.
-
-### Prerequisites
+## Prerequisites
 
 - Docker and Docker Compose
-- FHIR Validator JAR file (downloaded by setup script) 
 
 ## Quick Start
 
-1. **Download the FHIR validator:**
+1. **Clone this repository:**
    ```bash
-   ./validator/download-validator.sh
+   git clone https://github.com/medizininformatik-initiative/mii-fhir-validator.git
+   cd mii-fhir-validator
    ```
+   The `docker-compose.yml` in this repository is the canonical configuration. It references the pre-built image from GHCR and is kept in sync with the validator image.
 
 2. **Add SNOMED CT release files (required for validation):**
    ```bash
@@ -47,7 +32,7 @@ The following instructions are for running the complete local development setup 
    # See snomed-ct-release/README.md for detailed instructions
    ```
 
-3. **Download MII terminology packages (required for MII validation):**
+3. **Download MII terminology packages:**
    ```bash
    ./scripts/terminology/get-mii-terminology.sh install
    ```
@@ -68,10 +53,8 @@ The following instructions are for running the complete local development setup 
 6. **Start the services:**
    ```bash
    docker compose --profile blaze up -d
-   # Or use the helper script:
-   ./scripts/start-validator-with-blaze.sh
    ```
-   This starts the validator with direct HTTP connection to Blaze terminology server (LOINC + SNOMED CT support).
+   Docker Compose pulls the pre-built image from GHCR automatically and starts both services.
 
 7. **Load terminology resources into Blaze (required for validation):**
    ```bash
@@ -93,13 +76,13 @@ This setup uses Docker Compose profiles to support different terminology server 
 **Blaze Profile (Default - Local Development):**
 - Local Blaze terminology server with LOINC and SNOMED CT
 - Direct HTTP connection (no authentication required)
-- Start with: `docker compose --profile blaze up -d` or `./scripts/start-validator-with-blaze.sh`
+- Start with: `docker compose --profile blaze up -d`
 
 **Ontoserver Profile (MII Production Server):**
 - Connects to MII Service Unit Terminology Server via nginx proxy
 - Requires client certificates for authentication
 - Validator connects to nginx via HTTP, nginx proxies HTTPS to MII Ontoserver
-- Start with: `docker compose --profile ontoserver up -d` or `./scripts/start-validator-with-ontoserver.sh`
+- Start with: `docker compose --profile ontoserver up -d`
 
 ### Blaze Terminology Server (Default)
 
@@ -242,72 +225,9 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    TX_SERVER="http://nginx/fhir"
    ```
 
-3. **Configure nginx for MII Ontoserver:**
-   
-   <details>
-   <summary>Click to show complete nginx.conf for MII Ontoserver</summary>
-   
-   The default `nginx/nginx.conf` is already configured for MII Ontoserver. It listens on HTTP internally and proxies HTTPS to MII Ontoserver:
-   ```nginx
-   events {
-       worker_connections 1024;
-   }
-
-   http {
-       access_log /dev/stdout;
-       error_log /dev/stderr;
-
-       # Increase timeouts for terminology server operations
-       proxy_connect_timeout 300s;
-       proxy_send_timeout 300s;
-       proxy_read_timeout 300s;
-
-       server {
-           listen 80;
-           server_name localhost;
-
-           # Health check endpoint
-           location /health {
-               access_log off;
-               return 200 "healthy\n";
-               add_header Content-Type text/plain;
-           }
-
-           # Proxy to MII Ontoserver with client certificate authentication
-           location / {
-               # Forward to MII Ontoserver
-               proxy_pass https://ontoserver.mii-termserv.de;
-               proxy_ssl_server_name on;
-
-               # TLS client certificate settings
-               proxy_ssl_certificate /etc/nginx/certs/client-cert.pem;
-               proxy_ssl_certificate_key /etc/nginx/certs/client-key.key;
-
-               # Optional: verify server certificate
-               # proxy_ssl_verify on;
-               # proxy_ssl_trusted_certificate /etc/nginx/certs/ca-cert.pem;
-
-               # Forward headers
-               proxy_set_header Host $proxy_host;
-               proxy_set_header X-Real-IP $remote_addr;
-               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-               proxy_set_header X-Forwarded-Proto https;
-
-               # Handle redirects properly
-               proxy_redirect off;
-           }
-       }
-   }
-   ```
-   </details>
-
-4. **Start with Ontoserver profile:**
+3. **Start with Ontoserver profile:**
    ```bash
-   # Start services with ontoserver profile
    docker compose --profile ontoserver up -d
-   
-   # Or use the helper script (validates certificates and config):
-   ./scripts/start-validator-with-ontoserver.sh
    ```
    
    The setup works as follows:
@@ -326,13 +246,3 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
 - Update `nginx/nginx.conf` with correct URL and certificate paths
 - Use the ontoserver profile: `docker compose --profile ontoserver up -d`
 
-## Maintenance
-
-### Updating the Validator
-
-```bash
-cd validator
-./download-validator.sh
-docker compose build validator validator-ontoserver
-docker compose --profile blaze up -d  # or --profile ontoserver
-```

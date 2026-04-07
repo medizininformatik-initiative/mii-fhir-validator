@@ -1,11 +1,11 @@
 services:
   validator:
-    # Use published image from GitHub Container Registry
-    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
-    # Or build locally from source
-    build:
-      context: .
-      dockerfile: validator/Dockerfile
+    # Check https://github.com/medizininformatik-initiative/mii-fhir-validator/releases for available versions
+    image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
+    # To build locally from source instead:
+    # build:
+    #   context: .
+    #   dockerfile: validator/Dockerfile
     container_name: fhir-validator
     ports:
       - "8080:8080"
@@ -31,12 +31,12 @@ services:
     profiles: ["blaze"]
 
   validator-ontoserver:
-    # Use published image from GitHub Container Registry
-    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.1
-    # Or build locally from source
-    build:
-      context: .
-      dockerfile: validator/Dockerfile
+    # Check https://github.com/medizininformatik-initiative/mii-fhir-validator/releases for available versions
+    image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
+    # To build locally from source instead:
+    # build:
+    #   context: .
+    #   dockerfile: validator/Dockerfile
     container_name: fhir-validator
     ports:
       - "8080:8080"
