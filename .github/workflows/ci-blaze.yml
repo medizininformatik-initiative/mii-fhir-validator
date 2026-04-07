@@ -47,7 +47,7 @@ jobs:
         echo "Waiting for validator to start..."
         for i in {1..60}; do
           # Check logs for the ready message
-          if docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+          if docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
             echo "Validator is ready!"
             break
           fi
@@ -56,7 +56,7 @@ jobs:
         done
         
         # Verify it actually started
-        if ! docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+        if ! docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
           echo "ERROR: Validator failed to start. Logs:"
           docker compose --profile blaze logs validator
           exit 1
