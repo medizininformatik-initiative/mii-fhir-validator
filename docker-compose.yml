@@ -1,7 +1,7 @@
 services:
   validator:
     # Use published image from GitHub Container Registry
-    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.3
+    # image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
     # Or build locally from source
     build:
       context: .
@@ -13,10 +13,13 @@ services:
       - JAVA_OPTS=${JAVA_OPTS}
       - FHIR_VERSION=${FHIR_VERSION}
       - TX_SERVER=${TX_SERVER}
+      - TX_CACHE_DIR=${TX_CACHE_DIR}
+      - TX_LOG=${TX_LOG}
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:/root/.fhir/packages
+      - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       # Optional: override the built-in advisor configuration
       # - ./validator/advisor.json:/app/validator/advisor.json:ro
     depends_on:
@@ -41,10 +44,13 @@ services:
       - JAVA_OPTS=${JAVA_OPTS}
       - FHIR_VERSION=${FHIR_VERSION}
       - TX_SERVER=${TX_SERVER}
+      - TX_CACHE_DIR=${TX_CACHE_DIR}
+      - TX_LOG=${TX_LOG}
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:/root/.fhir/packages
+      - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       - ./nginx/certs:/certs:ro
       # Optional: override the built-in advisor configuration
       # - ./validator/advisor.json:/app/validator/advisor.json:ro
@@ -55,7 +61,7 @@ services:
     profiles: ["ontoserver"]
 
   blaze:
-    image: samply/blaze:1.6.1@sha256:fd002226eb99437b3848133cae2f421622a2650e3a14c0c97418b7b75c005705
+    image: samply/blaze:1.6.2@sha256:4148d6cc9daf1f7237270878535d176b1e24b8d4092dcf636d42778c3a49dbc8
     container_name: blaze-terminology
     ports:
       - "8082:8080"
@@ -108,3 +114,4 @@ networks:
 volumes:
   fhir-package-cache:
   blaze-data:
+  tx-cache:

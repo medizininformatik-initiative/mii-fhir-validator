@@ -69,7 +69,7 @@ jobs:
           # Wait for validator to start
           echo "Waiting for validator to start..."
           for i in {1..60}; do
-            if docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+            if docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
               echo "Validator is ready!"
               break
             fi
@@ -78,7 +78,7 @@ jobs:
           done
           
           # Verify it started
-          if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started on port 8080"; then
+          if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
             echo "ERROR: Validator failed to start"
             docker logs test-validator
             exit 1

@@ -33,9 +33,29 @@ FHIR version used for validation.
 
 #### `JAVA_OPTS`
 
-JVM options passed to the validator process. Increase `-Xmx` if you encounter out-of-memory errors.
+JVM options passed to the validator process. Increase `-Xmx` if you encounter out-of-memory errors during validation or when building the terminology cache on first startup.
 
-**Default:** `-Xmx4g`
+**Default:** `-Xmx16g`
+
+::: tip Memory requirements
+Large bundles and the initial terminology cache warm-up can require significant Java heap space. `-Xmx16g` is recommended. Otherwise, `-Xmx8g` is usually sufficient for single-resource validation.
+:::
+
+---
+
+#### `TX_CACHE_DIR`
+
+Directory inside the container where terminology server responses are cached. Mapped to a persistent Docker volume so the cache is retained across container restarts, eliminating cold-start latency on subsequent startups.
+
+**Default:** `/tmp/tx-cache`
+
+---
+
+#### `TX_LOG`
+
+Path inside the container for the terminology server request log. Each validation request's TX interactions are appended to this file. Set to an empty string to disable logging.
+
+**Default:** `/tmp/tx-cache/tx.log`
 
 ---
 
