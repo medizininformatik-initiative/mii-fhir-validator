@@ -1,0 +1,167 @@
+name: Build and Push Image
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+            
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: validator/Dockerfile
+          load: true
+          tags: mii-fhir-validator:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Download MII terminology packages
+        run: ./scripts/terminology/get-mii-terminology.sh install
+
+      - name: Download SNOMED CT Release
+        uses: ./.github/actions/speicherwolke-download
+        with:
+          token: ${{ secrets.SCT_DOWNLOAD_TOKEN }}
+          filename: SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip
+
+      - name: Unzip SNOMED CT Release
+        run: unzip SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip -d snomed-ct-release
+      
+      - name: Start Blaze TermServer (CI mode)
+        run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait blaze
+      
+      - name: Upload MII terminology to Blaze
+        run: ./scripts/terminology/upload-terminology.sh
+      
+      - name: Test validator image with Blaze
+        run: |
+          # Start validator with direct HTTP connection to Blaze
+          docker run -d --name test-validator \
+            --network mii-fhir-validator_fhir-network \
+            -p 8080:8080 \
+            -e TX_SERVER=http://blaze-terminology:8080/fhir \
+            -e JAVA_OPTS=-Xmx4g \
+            mii-fhir-validator:test
+          
+          # Wait for validator to start
+          echo "Waiting for validator to start..."
+          for i in {1..120}; do
+            if docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
+              echo "Validator is ready!"
+              break
+            fi
+            echo "Attempt $i/120: not ready yet..."
+            sleep 3
+          done
+          
+          if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
+            echo "ERROR: Validator failed to start"
+            docker logs test-validator
+            exit 1
+          fi
+          
+          # Run a validation test
+          echo "Testing validation service..."
+          RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
+            -H "Content-Type: application/fhir+json" \
+            -H "Accept: application/fhir+json" \
+            -d @.github/test-resources/valid-observation.json)
+          
+          RESOURCE_TYPE=$(echo "$RESPONSE" | jq -r '.resourceType')
+          if [ "$RESOURCE_TYPE" != "OperationOutcome" ]; then
+            echo "ERROR: Expected OperationOutcome, got $RESOURCE_TYPE"
+            docker logs test-validator
+            exit 1
+          fi
+          
+          echo "✓ Validator image test passed"
+          docker stop test-validator
+      
+      - name: Save image for upload
+        run: docker save mii-fhir-validator:test | gzip > /tmp/mii-fhir-validator.tar.gz
+      
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mii-fhir-validator-image
+          path: /tmp/mii-fhir-validator.tar.gz
+
+  push-image:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.ref_type == 'tag' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+      
+      - name: Download image artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: mii-fhir-validator-image
+          path: /tmp
+      
+      - name: Load image
+        run: docker load --input /tmp/mii-fhir-validator.tar.gz
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: validator/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

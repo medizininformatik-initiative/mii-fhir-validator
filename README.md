@@ -2,57 +2,57 @@
 >
 > ➡️ Go here: https://github.com/medizininformatik-initiative/mii-fhir-validator/tree/develop
 
-# MII FHIR Validator Service
+# MII FHIR Validator
 
-A locally deployable FHIR validation service. This service includes:
-- FHIR Validator as a local HTTP service
-- Blaze terminology service (default, no authentication required)
-- Optional: Nginx proxy for certificate-based access to MII Ontoserver
-- Support for offline Implementation Guides
+A locally deployable FHIR validation service pre-configured for MII Implementation Guides. Pre-built images are published to GitHub Container Registry.
 
-**Current Configuration:** This setup uses **Blaze** as the default terminology server for local development and validation. For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`), see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
+`docker compose` starts two services:
+- **Validator** — FHIR Validator HTTP service on port `8080`, pre-loaded with MII IGs
+- **Blaze** — local FHIR terminology server on port `8082`
+
+For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-termserv.de`) instead of local Blaze, see [Alternative: MII Ontoserver Setup](#alternative-mii-ontoserver-setup) below.
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- FHIR Validator JAR file (downloaded by setup script)
 
 ## Quick Start
 
-1. **Download the FHIR validator:**
+1. **Clone this repository:**
    ```bash
-   ./validator/download-validator.sh
+   git clone https://github.com/medizininformatik-initiative/mii-fhir-validator.git
+   cd mii-fhir-validator
    ```
+   The `docker-compose.yml` in this repository is the canonical configuration. It references the pre-built image from GHCR and is kept in sync with the validator image.
 
-2. **Generate self-signed certificate:**
-   ```bash
-   ./scripts/generate-self-signed-cert.sh
-   ```
-   This creates certificates needed for the validator's internal HTTPS connection to Blaze (via nginx proxy).
-
-3. **Add SNOMED CT release files (required for validation):**
+2. **Add SNOMED CT release files (required for validation):**
    ```bash
    # Download SNOMED CT International Edition from e.g. https://www.nlm.nih.gov/healthit/snomedct/
    # Extract the release into the snomed-ct-release/ directory
    # See snomed-ct-release/README.md for detailed instructions
    ```
 
-4. **Download MII terminology packages (required for MII validation):**
+3. **Download MII terminology packages:**
    ```bash
    ./scripts/terminology/get-mii-terminology.sh install
    ```
    This downloads CodeSystems and ValueSets that will be loaded into Blaze.
 
-5. **Add Implementation Guides (optional):**
-   Place your offline IG package files (`.tgz`) in the `igs/` directory.
-   
-   **For true offline operation:** You also need to pre-populate the FHIR package cache with core dependencies. See [Offline Operation](#offline-operation) below.
+4. **Add Implementation Guides (optional):**
+   Place your offline IG package files (`.tgz`) in the `igs/` directory and reference them in `IG_PARAMS` (e.g. `-ig /igs/your-package.tgz`).
+
+5. **Configure environment variables (optional):**
+   ```bash
+   cp .env.default .env
+   # Edit .env to customize settings
+   ```
+   Docker Compose will read `.env` for configuration. Infrastructure variables (`TX_SERVER`, `FHIR_VERSION`, `TX_CACHE_DIR`, `TX_LOG`) have built-in defaults in `docker-compose.yml` — you only need `.env` to set `JAVA_OPTS` and `IG_PARAMS`, or to override those defaults. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customizations.
 
 6. **Start the services:**
    ```bash
-   docker-compose up -d
+   docker compose --profile blaze up -d
    ```
-   This starts the validator with Blaze terminology server (LOINC + SNOMED CT support).
+   Docker Compose pulls the pre-built image from GHCR automatically and starts both services.
 
 7. **Load terminology resources into Blaze (required for validation):**
    ```bash
@@ -67,22 +67,53 @@ A locally deployable FHIR validation service. This service includes:
 
 ## Configuration
 
+### Service Profiles
+
+This setup uses Docker Compose profiles to support different terminology server configurations:
+
+**Blaze Profile (Default - Local Development):**
+- Local Blaze terminology server with LOINC and SNOMED CT
+- Direct HTTP connection (no authentication required)
+- Start with: `docker compose --profile blaze up -d`
+
+**Ontoserver Profile (MII Production Server):**
+- Connects to MII Service Unit Terminology Server via nginx proxy
+- Requires client certificates for authentication
+- Validator connects to nginx via HTTP, nginx proxies HTTPS to MII Ontoserver
+- Start with: `docker compose --profile ontoserver up -d`
+
 ### Blaze Terminology Server (Default)
 
 The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology server with LOINC and SNOMED CT support.
 
 **Architecture:**
 - **Blaze** runs on HTTP (accessible on port 8082)
-- **Nginx** provides HTTPS/SSL termination with self-signed certificate
-- **Validator** connects to `https://nginx/fhir`, which proxies to Blaze over HTTP
+- **Validator** connects directly to Blaze via HTTP
 
 ### Validator Configuration
 
-Edit `docker-compose.yml` environment variables to customize:
-- `FHIR_VERSION` - FHIR version (default: 4.0)
+Configuration is split into two tiers:
+
+**Set via `.env` (required for basic use):**
+- `JAVA_OPTS` - JVM memory settings (default: `-Xmx16g`)
 - `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
-- `TX_SERVER` - Terminology server endpoint (default: `https://nginx/fhir` which proxies to Blaze)
-- `JAVA_OPTS` - JVM memory settings
+
+**Built-in defaults in `docker-compose.yml` (override in `.env` only if needed):**
+- `FHIR_VERSION` - FHIR version (default: `4.0`)
+- `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
+- `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
+- `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
+
+**Using .env file:**
+```bash
+cp .env.default .env
+# Edit .env with your custom values
+```
+
+Docker Compose reads `.env` from the same directory. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customization.
+
+**Direct editing:**
+Alternatively, edit `docker-compose.yml` environment variables directly.
 
 ## Usage Examples
 
@@ -117,70 +148,28 @@ curl -X POST http://localhost:8080/validateResource \
 
 The validator returns an `OperationOutcome` resource with validation results.
 
-### Running Without Docker
-
-If you need to run the validator JAR directly (outside Docker):
-
-**With Blaze running via Docker Compose:**
-```bash
-# Start only Blaze and nginx via Docker
-docker-compose up -d blaze nginx
-
-# Run validator locally, connecting to Blaze on localhost
-java -jar validator/validator_cli.jar \
-  -server 8080 \
-  -version 4.0 \
-  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 \
-  -tx http://localhost:8082/fhir
-```
-
-**Note:** Without a terminology server, validation will be incomplete. See [Configuration](#configuration) for terminology server options.
-
 ## Offline Operation
 
-The validator can work in offline environments, but requires preparation:
+The pre-built image contains the full FHIR package cache for all default MII IGs baked in at build time. This includes all IG dependencies. No internet access is required at runtime when using the default configuration.
 
-### Important: Offline Operation Requires Pre-populated Package Cache
+### Adding Custom IGs for Offline Use
 
-The validator needs **all dependencies** available offline. When starting, it downloads:
-- Core FHIR spec (e.g., `hl7.fhir.r4.core#4.0.1`)
-- Terminology packages (e.g., `hl7.terminology.r4#6.2.0`)
-- Extension packages (e.g., `hl7.fhir.uv.extensions.r4#5.2.0`)
-- IG dependencies (e.g., `de.basisprofil.r4#1.5.4`)
+If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
 
-**To prepare for offline use:**
-
-Run the validator once while online to download and cache all dependencies:
 ```bash
-docker-compose up -d
-# Wait for all packages to download (check logs: docker-compose logs validator)
-docker-compose down
+docker compose --profile blaze up -d
+# Wait for all packages to download (check logs: docker compose logs validator)
+docker compose down
 ```
 
-The package cache is persisted in a Docker volume and will be available for offline use.
+The `fhir-package-cache` Docker volume persists the cache across container restarts.
 
-### Offline with Blaze Terminology Server (Default Configuration)
-1. **Add SNOMED CT release files** to `snomed-ct-release/` directory (see [snomed-ct-release/README.md](snomed-ct-release/README.md))
-2. Pre-populate package cache (see above)
-3. Place your IG `.tgz` files in `igs/` directory (optional)
-4. Start services: `docker-compose up -d`
-
-**Note:** A terminology service like Blaze is required for complete FHIR validation. Without it, terminology-dependent validations (CodeSystem, ValueSet bindings, code validation) will fail.
-
-### Loading Local Implementation Guides
-
-To load IGs from the `igs/` directory, specify the **full container path** in `docker-compose.yml`:
-
-```yaml
-IG_PARAMS=-ig /igs/your-package-2026.0.0.tgz
+To load IGs from the `igs/` directory:
+```bash
+IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
 ```
 
-For multiple IGs:
-```yaml
-IG_PARAMS=-ig /igs/package1.tgz -ig /igs/package2.tgz
-```
-
-**Note:** Dependencies will still be resolved from the package cache or downloaded online if not cached.
+**Note:** A terminology service (Blaze) is still required for offline terminology validation (CodeSystem, ValueSet bindings, code validation). SNOMED CT release files must be provided locally — see [snomed-ct-release/README.md](snomed-ct-release/README.md).
 
 ## Alternative: MII Ontoserver Setup
 
@@ -208,192 +197,33 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    openssl rsa -in encrypted-key.key -out client-key.key
    ```
 
-2. **Configure nginx for MII Ontoserver:**
+2. **Update configuration:**
    
-   <details>
-   <summary>Click to show complete nginx.conf for MII Ontoserver</summary>
-   
-   Replace `nginx/nginx.conf` with the following configuration:
-   ```nginx
-   events {
-       worker_connections 1024;
-   }
-
-   http {
-       access_log /dev/stdout;
-       error_log /dev/stderr;
-
-       # Increase timeouts for terminology server operations
-       proxy_connect_timeout 300s;
-       proxy_send_timeout 300s;
-       proxy_read_timeout 300s;
-
-       server {
-           listen 80;
-           server_name localhost;
-
-           # Health check endpoint
-           location /health {
-               access_log off;
-               return 200 "healthy\n";
-               add_header Content-Type text/plain;
-           }
-
-           # Redirect all other traffic to HTTPS
-           location / {
-               return 301 https://$host$request_uri;
-           }
-       }
-
-       server {
-           listen 443 ssl;
-           server_name localhost;
-
-           # Self-signed certificate for internal communication
-           ssl_certificate /etc/nginx/certs/self-signed.crt;
-           ssl_certificate_key /etc/nginx/certs/self-signed.key;
-
-           # Health check endpoint
-           location /health {
-               access_log off;
-               return 200 "healthy\n";
-               add_header Content-Type text/plain;
-           }
-
-           # Proxy to MII Ontoserver with client certificate authentication
-           location / {
-               # Forward to MII Ontoserver
-               proxy_pass https://ontoserver.mii-termserv.de;
-               proxy_ssl_server_name on;
-
-               # TLS client certificate settings
-               proxy_ssl_certificate /etc/nginx/certs/client-cert.pem;
-               proxy_ssl_certificate_key /etc/nginx/certs/client-key.key;
-
-               # Optional: verify server certificate
-               # proxy_ssl_verify on;
-               # proxy_ssl_trusted_certificate /etc/nginx/certs/ca-cert.pem;
-
-               # Forward headers
-               proxy_set_header Host $proxy_host;
-               proxy_set_header X-Real-IP $remote_addr;
-               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-               proxy_set_header X-Forwarded-Proto $scheme;
-
-               # Handle redirects properly
-               proxy_redirect off;
-           }
-       }
-   }
-   ```
-   </details>
-
-3. **Update docker-compose.yml:**
-   
-   <details>
-   <summary>Click to show docker-compose.yml for MII Ontoserver</summary>
-   
-   Replace `docker-compose.yml` with this version (Blaze service removed):
-   ```yaml
-   services:
-     validator:
-       build:
-         context: ./validator
-         dockerfile: Dockerfile
-       container_name: fhir-validator
-       ports:
-         - "8080:8080"
-       environment:
-         - JAVA_OPTS=-Xmx4g
-         - FHIR_VERSION=4.0
-         - TX_SERVER=https://nginx/fhir
-         - IG_PARAMS=
-             -ig de.basisprofil.r4#1.5.4
-             -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.biobank#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4
-             -ig de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.0
-             -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.0-ballot
-       volumes:
-         - ./validator/config:/config:ro
-         - ./igs:/igs:ro
-         - ./nginx/certs/self-signed.crt:/etc/nginx/certs/self-signed.crt:ro
-         - fhir-package-cache:/root/.fhir/packages
-       depends_on:
-         nginx:
-           condition: service_healthy
-       networks:
-         - fhir-network
-       restart: unless-stopped
-
-     nginx:
-       build:
-         context: ./nginx
-         dockerfile: Dockerfile
-       container_name: fhir-nginx
-       ports:
-         - "8081:80"
-       volumes:
-         - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-         - ./nginx/certs:/etc/nginx/certs:ro
-       networks:
-         - fhir-network
-       restart: unless-stopped
-
-   networks:
-     fhir-network:
-       driver: bridge
-
-   volumes:
-     fhir-package-cache:
-   ```
-   </details>
-
-4. **Restart services:**
+   Update `.env` to use nginx proxy:
    ```bash
-   docker-compose down
-   docker-compose up -d
+   cp .env.default .env
+   # Edit .env and change:
+   TX_SERVER="http://nginx/fhir"
+   ```
+
+3. **Start with Ontoserver profile:**
+   ```bash
+   docker compose --profile ontoserver up -d
    ```
    
-   The validator will now use MII Ontoserver instead of Blaze.
+   The setup works as follows:
+   - Validator connects to nginx via HTTP
+   - Nginx proxies requests to MII Ontoserver via HTTPS
+   - Client certificates are used for authentication with MII Ontoserver
 
 ### Using Other Terminology Servers
 
 **For a local server without authentication (e.g., HAPI FHIR):**
-- Edit `docker-compose.yml`: Change `TX_SERVER` to `http://your-server:port/fhir`
-- Update nginx configuration or connect directly
+- Set `TX_SERVER` to `http://your-server:port/fhir` in `.env`
+- Use the blaze profile: `docker compose --profile blaze up -d`
 
 **For other authenticated servers:**
 - Follow steps similar to MII Ontoserver setup
 - Update `nginx/nginx.conf` with correct URL and certificate paths
-- Configure authentication as required by your server
-
-## Maintenance
-
-### Updating the Validator
-
-```bash
-cd validator
-./download-validator.sh
-docker-compose build validator
-docker-compose up -d
-```
-
-### Certificate Renewal
-
-**For self-signed certificates (default Blaze setup):**
-```bash
-./scripts/generate-self-signed-cert.sh
-docker-compose restart nginx validator
-```
-
-**For MII Ontoserver client certificates:**
-1. Replace certificates in `nginx/certs/`
-2. Restart nginx: `docker-compose restart nginx`
+- Use the ontoserver profile: `docker compose --profile ontoserver up -d`
 

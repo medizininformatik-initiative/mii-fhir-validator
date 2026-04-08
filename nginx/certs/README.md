@@ -1,36 +1,26 @@
 # Certificate Directory
 
-This directory contains certificates needed for the FHIR validator setup.
+This directory contains certificates needed for authenticating with the MII Ontoserver.
 
-## Required Files
+## Required Files (for MII Ontoserver only)
 
-### Self-Signed Certificate (Generated)
-- `self-signed.crt` - Self-signed certificate for internal HTTPS
-- `self-signed.key` - Private key for self-signed certificate
-
-**Generate these by running:**
-```bash
-../../scripts/generate-self-signed-cert.sh
-```
-
-### Client Certificates (Provided by terminology server administrator)
-- `client-cert.pem` - Your client certificate for terminology server authentication
-- `client-key.key` - Your decrypted private key (PKCS8 format, unencrypted)
+### Client Certificates
+- `client-cert.pem` - Your client certificate for MII Ontoserver authentication
+- `client-key.key` - Your decrypted private key (PEM format, unencrypted)
 
 **Important:** If your private key is encrypted, decrypt it first:
 ```bash
-openssl pkcs8 -in client-key-encrypted.key -out client-key.key
+openssl rsa -in encrypted-key.key -out client-key.key
 ```
 
-## Why Two Sets of Certificates?
+## How It Works
 
-1. **Self-signed certificate** (`self-signed.*`): Used for internal HTTPS between the validator and nginx
-   - The FHIR validator forces HTTPS even for internal connections
-   - This certificate is self-generated and only used within the Docker network
+When using the Ontoserver profile (`docker compose --profile ontoserver up`):
+- The validator connects to nginx via **HTTP** (using the `allowHttp` feature)
+- Nginx proxies requests to MII Ontoserver via **HTTPS**
+- Client certificates are used by nginx for authentication with MII Ontoserver
 
-2. **Client certificates** (`client-cert.pem`, `client-key.key`): Used by nginx to authenticate with the remote terminology server
-   - These are provided by the terminology server administrator
-   - They enable mutual TLS (mTLS) authentication
+**No self-signed certificates needed:** Internal communication uses HTTP, so only the client certificates for MII authentication are required
 
 ## Security Notes
 
@@ -38,24 +28,20 @@ openssl pkcs8 -in client-key-encrypted.key -out client-key.key
 
 - **Never commit real certificates to version control** - all certificate files are ignored by git
 - Use appropriate file permissions: `chmod 600 *.key *.pem`
-- The self-signed certificate is safe to regenerate anytime
+- Keep your certificates secure and rotate them according to MII team's policies
 
 ## File Format
 
-Certificates should be in PEM format:
+Certificates and keys should be in PEM format:
 
+**Certificate:**
 ```
 -----BEGIN CERTIFICATE-----
 [Base64 encoded certificate]
 -----END CERTIFICATE-----
 ```
 
-Keys should also be in PEM format:
-
-```
------BEGIN PRIVATE KEY-----
-[Base64 encoded key]
------END PRIVATE KEY-----
+**Private Key:**
 ```
 -----BEGIN PRIVATE KEY-----
 [Base64 encoded private key]
@@ -72,7 +58,7 @@ openssl x509 -in client-cert.pem -text -noout
 
 # Verify certificate and key match
 openssl x509 -noout -modulus -in client-cert.pem | openssl md5
-openssl rsa -noout -modulus -in client-key.pem | openssl md5
+openssl rsa -noout -modulus -in client-key.key | openssl md5
 # The MD5 hashes should match
 ```
 

@@ -4,7 +4,6 @@ nginx/certs/*.key
 nginx/certs/*.crt
 
 # Validator JAR
-validator/validator_cli.jar
 
 # Implementation Guides (can be large)
 igs/*.tgz
@@ -38,3 +37,12 @@ snomed-ct-release/SnomedCT_*
 # Node.js / npm (terminology packages)
 scripts/terminology/node_modules/
 scripts/terminology/package-lock.json
+
+# Example configuration files
+docker-compose.yml.example
+
+# Environment variable files
+.env
+
+# scripts
+scripts/sync-igs.sh
