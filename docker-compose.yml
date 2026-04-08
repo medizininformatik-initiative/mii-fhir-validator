@@ -25,6 +25,12 @@ services:
     depends_on:
       blaze:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "--post-data", "{}", "--header", "Content-Type: application/fhir+json", "http://localhost:8080/validateResource" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
     networks:
       - fhir-network
     restart: unless-stopped
@@ -100,7 +106,7 @@ services:
     networks:
       - fhir-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "wget", "--spider", "http://localhost:80/health"]
       interval: 10s
       timeout: 3s
       retries: 3
