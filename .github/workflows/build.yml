@@ -65,16 +65,15 @@ jobs:
           
           # Wait for validator to start
           echo "Waiting for validator to start..."
-          for i in {1..60}; do
+          for i in {1..120}; do
             if docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
               echo "Validator is ready!"
               break
             fi
-            echo "Attempt $i/60: Validator not ready yet..."
+            echo "Attempt $i/120: not ready yet..."
             sleep 3
           done
           
-          # Verify it started
           if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
             echo "ERROR: Validator failed to start"
             docker logs test-validator
