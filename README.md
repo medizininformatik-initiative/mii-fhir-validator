@@ -39,16 +39,14 @@ For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-terms
    This downloads CodeSystems and ValueSets that will be loaded into Blaze.
 
 4. **Add Implementation Guides (optional):**
-   Place your offline IG package files (`.tgz`) in the `igs/` directory.
-   
-   **For true offline operation:** You also need to pre-populate the FHIR package cache with core dependencies. See [Offline Operation](#offline-operation) below.
+   Place your offline IG package files (`.tgz`) in the `igs/` directory and reference them in `IG_PARAMS` (e.g. `-ig /igs/your-package.tgz`).
 
 5. **Configure environment variables (optional):**
    ```bash
    cp .env.default .env
-   # Edit .env to customize settings (TX_SERVER, IG_PARAMS, JAVA_OPTS, etc.)
+   # Edit .env to customize settings
    ```
-   Docker Compose will automatically read `.env` for configuration. The `.env.default` file contains default values and is tracked in git, while `.env` is gitignored for local customizations.
+   Docker Compose will read `.env` for configuration. Infrastructure variables (`TX_SERVER`, `FHIR_VERSION`, `TX_CACHE_DIR`, `TX_LOG`) have built-in defaults in `docker-compose.yml` — you only need `.env` to set `JAVA_OPTS` and `IG_PARAMS`, or to override those defaults. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customizations.
 
 6. **Start the services:**
    ```bash
@@ -90,23 +88,29 @@ The setup uses [Blaze](https://samply.github.io/blaze/) as a local terminology s
 
 **Architecture:**
 - **Blaze** runs on HTTP (accessible on port 8082)
-- **Validator** connects directly to Blaze via HTTP (`allowHttp` is enabled automatically when `TX_SERVER` uses `http://`)
+- **Validator** connects directly to Blaze via HTTP
 
 ### Validator Configuration
 
-Configuration can be customized via environment variables:
-- `FHIR_VERSION` - FHIR version (default: 4.0)
-- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
-- `TX_SERVER` - Terminology server endpoint (default: `http://blaze-terminology:8080/fhir` for direct HTTP connection)
-- `JAVA_OPTS` - JVM memory settings
+Configuration is split into two tiers:
 
-**Using .env file (recommended):**
+**Set via `.env` (required for basic use):**
+- `JAVA_OPTS` - JVM memory settings (default: `-Xmx16g`)
+- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
+
+**Built-in defaults in `docker-compose.yml` (override in `.env` only if needed):**
+- `FHIR_VERSION` - FHIR version (default: `4.0`)
+- `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
+- `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
+- `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
+
+**Using .env file:**
 ```bash
 cp .env.default .env
 # Edit .env with your custom values
 ```
 
-Docker Compose automatically reads `.env` from the same directory. The `.env.default` file provides example values and is tracked in git, while `.env` is gitignored for local customization.
+Docker Compose reads `.env` from the same directory. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customization.
 
 **Direct editing:**
 Alternatively, edit `docker-compose.yml` environment variables directly.
@@ -146,49 +150,26 @@ The validator returns an `OperationOutcome` resource with validation results.
 
 ## Offline Operation
 
-The validator can work in offline environments, but requires preparation:
+The pre-built image contains the full FHIR package cache for all default MII IGs baked in at build time. This includes all IG dependencies. No internet access is required at runtime when using the default configuration.
 
-### Important: Offline Operation Requires Pre-populated Package Cache
+### Adding Custom IGs for Offline Use
 
-The validator needs **all dependencies** available offline. When starting, it downloads:
-- Core FHIR spec (e.g., `hl7.fhir.r4.core#4.0.1`)
-- Terminology packages (e.g., `hl7.terminology.r4#6.2.0`)
-- Extension packages (e.g., `hl7.fhir.uv.extensions.r4#5.2.0`)
-- IG dependencies (e.g., `de.basisprofil.r4#1.5.4`)
+If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
 
-**To prepare for offline use:**
-
-Run the validator once while online to download and cache all dependencies:
 ```bash
 docker compose --profile blaze up -d
 # Wait for all packages to download (check logs: docker compose logs validator)
 docker compose down
 ```
 
-The package cache is persisted in a Docker volume and will be available for offline use.
+The `fhir-package-cache` Docker volume persists the cache across container restarts.
 
-### Offline with Blaze Terminology Server (Default Configuration)
-1. **Add SNOMED CT release files** to `snomed-ct-release/` directory (see [snomed-ct-release/README.md](snomed-ct-release/README.md))
-2. Pre-populate package cache (see above)
-3. Place your IG `.tgz` files in `igs/` directory (optional)
-4. Start services: `docker compose --profile blaze up -d`
-
-**Note:** A terminology service like Blaze is required for complete FHIR validation. Without it, terminology-dependent validations (CodeSystem, ValueSet bindings, code validation) will fail.
-
-### Loading Local Implementation Guides
-
-To load IGs from the `igs/` directory, set the `IG_PARAMS` variable in your `.env` file:
-
+To load IGs from the `igs/` directory:
 ```bash
-IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz"
+IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
 ```
 
-For multiple IGs:
-```bash
-IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
-```
-
-**Note:** Dependencies will still be resolved from the package cache or downloaded online if not cached.
+**Note:** A terminology service (Blaze) is still required for offline terminology validation (CodeSystem, ValueSet bindings, code validation). SNOMED CT release files must be provided locally — see [snomed-ct-release/README.md](snomed-ct-release/README.md).
 
 ## Alternative: MII Ontoserver Setup
 
