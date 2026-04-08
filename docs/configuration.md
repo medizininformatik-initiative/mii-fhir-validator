@@ -1,11 +1,16 @@
 # Configuration
 
-The MII FHIR Validator is configured via environment variables. These can be set in a `.env` file (copy `.env.default` as a starting point) which Docker Compose reads automatically.
+The MII FHIR Validator is configured via environment variables. Configuration is split into two tiers:
+
+- **`JAVA_OPTS` and `IG_PARAMS`** are set via `.env` (copy `.env.default` as a starting point).
+- **`FHIR_VERSION`, `TX_SERVER`, `TX_CACHE_DIR`, `TX_LOG`** have built-in defaults in `docker-compose.yml` and only need to be set in `.env` if you want to override them.
 
 ```bash
 cp .env.default .env
 # Edit .env with your custom values
 ```
+
+`.env.default` documents all available variables (infrastructure defaults are shown as commented-out entries) and is tracked in git; `.env` is gitignored for local customization.
 
 ---
 
@@ -17,9 +22,9 @@ For the local **Blaze** profile, this points to the Blaze container inside the D
 
 HTTP connections are enabled automatically when `TX_SERVER` starts with `http://` — the container generates the required `fhir-settings.json` at startup.
 
-**Default (Blaze profile):** `http://blaze-terminology:8080/fhir`
+**Default (Blaze profile):** `http://blaze-terminology:8080/fhir` *(set in `docker-compose.yml`)*
 
-**Ontoserver profile:** `http://nginx/fhir`
+**Default (Ontoserver profile):** `http://nginx/fhir` *(set in `docker-compose.yml`)*
 
 ---
 
@@ -27,7 +32,7 @@ HTTP connections are enabled automatically when `TX_SERVER` starts with `http://
 
 FHIR version used for validation.
 
-**Default:** `4.0`
+**Default:** `4.0` *(set in `docker-compose.yml`)*
 
 ---
 
@@ -47,7 +52,7 @@ Large bundles and the initial terminology cache warm-up can require significant 
 
 Directory inside the container where terminology server responses are cached. Mapped to a persistent Docker volume so the cache is retained across container restarts, eliminating cold-start latency on subsequent startups.
 
-**Default:** `/tmp/tx-cache`
+**Default:** `/tmp/tx-cache` *(set in `docker-compose.yml`)*
 
 ---
 
@@ -55,7 +60,7 @@ Directory inside the container where terminology server responses are cached. Ma
 
 Path inside the container for the terminology server request log. Each validation request's TX interactions are appended to this file. Set to an empty string to disable logging.
 
-**Default:** `/tmp/tx-cache/tx.log`
+**Default:** `/tmp/tx-cache/tx.log` *(set in `docker-compose.yml`)*
 
 ---
 

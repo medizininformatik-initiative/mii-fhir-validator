@@ -96,9 +96,13 @@ IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
 
 ## Offline Operation
 
-The validator can operate offline, but all dependencies must be pre-cached first.
+The pre-built image contains the full FHIR package cache for all default MII IGs baked in at build time. This includes all IG dependencies. No internet access is required at runtime when using the default configuration.
 
-Run the validator once while online to download and cache all required packages:
+SNOMED CT release files must still be present in `snomed-ct-release/` for Blaze to start (see [snomed-ct-release/README.md](../snomed-ct-release/README.md)).
+
+### Custom IGs
+
+If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup and may require internet access. To pre-cache them, run the validator once while online:
 
 ```bash
 docker compose --profile blaze up -d
@@ -108,4 +112,4 @@ docker compose logs -f validator
 docker compose down
 ```
 
-The package cache is persisted in the `fhir-package-cache` Docker volume and will be available offline. SNOMED CT release files must also be present in `snomed-ct-release/` for Blaze to start.
+The `fhir-package-cache` Docker volume persists the cache across container restarts and will be available for subsequent offline use.
