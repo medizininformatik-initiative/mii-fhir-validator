@@ -15,7 +15,7 @@ openssl rsa -in encrypted-key.key -out client-key.key
 
 ## How It Works
 
-When using the Ontoserver profile (`docker compose --profile ontoserver up`):
+When using the Ontoserver profile (for example by setting `COMPOSE_PROFILES` to `ontoserver` in `.env`):
 - The validator connects to nginx via **HTTP** (using the `allowHttp` feature)
 - Nginx proxies requests to MII Ontoserver via **HTTPS**
 - Client certificates are used by nginx for authentication with MII Ontoserver
