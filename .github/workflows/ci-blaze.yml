@@ -36,8 +36,8 @@ jobs:
     - name: Prepare environment
       run: cp .env.default .env
 
-    - name: Start services with Blaze profile (CI mode)
-      run: docker compose --profile blaze -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait
+    - name: Start services (CI mode) with Blaze profile (which is set by default in .env by step before)
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait
     
     - name: Upload MII terminology to Blaze
       run: ./scripts/terminology/upload-terminology.sh
@@ -46,16 +46,16 @@ jobs:
       run: |
         echo "Waiting for validator to start..."
         for i in {1..120}; do
-          if docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
+          if docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
             echo "Validator is ready!"
             break
           fi
           echo "Attempt $i/120: not ready yet..."
           sleep 3
         done
-        if ! docker compose --profile blaze logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
+        if ! docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
           echo "ERROR: Validator failed to start. Logs:"
-          docker compose --profile blaze logs validator
+          docker compose logs validator
           exit 1
         fi
     
@@ -119,10 +119,10 @@ jobs:
       if: failure()
       run: |
         echo "=== Docker Compose Logs ==="
-        docker compose --profile blaze logs
+        docker compose logs
         echo "=== Container Status ==="
-        docker compose --profile blaze ps
+        docker compose ps
     
     - name: Cleanup
       if: always()
-      run: docker compose --profile blaze -f docker-compose.yml -f .github/configs/docker-compose.ci.yml down -v
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml down -v

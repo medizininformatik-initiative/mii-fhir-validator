@@ -50,7 +50,7 @@ For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-terms
 
 6. **Start the services:**
    ```bash
-   docker compose --profile blaze up -d
+   docker compose up -d
    ```
    Docker Compose pulls the pre-built image from GHCR automatically and starts both services.
 
@@ -74,13 +74,13 @@ This setup uses Docker Compose profiles to support different terminology server 
 **Blaze Profile (Default - Local Development):**
 - Local Blaze terminology server with LOINC and SNOMED CT
 - Direct HTTP connection (no authentication required)
-- Start with: `docker compose --profile blaze up -d`
+- Set `COMPOSE_PROFILES` to `blaze` in `.env`
 
 **Ontoserver Profile (MII Production Server):**
 - Connects to MII Service Unit Terminology Server via nginx proxy
 - Requires client certificates for authentication
 - Validator connects to nginx via HTTP, nginx proxies HTTPS to MII Ontoserver
-- Start with: `docker compose --profile ontoserver up -d`
+- Set `COMPOSE_PROFILES` to `ontoserver` in `.env`
 
 ### Blaze Terminology Server (Default)
 
@@ -157,7 +157,7 @@ The pre-built image contains the full FHIR package cache for all default MII IGs
 If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
 
 ```bash
-docker compose --profile blaze up -d
+docker compose up -d
 # Wait for all packages to download (check logs: docker compose logs validator)
 docker compose down
 ```
@@ -203,14 +203,10 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
    ```bash
    cp .env.default .env
    # Edit .env and change:
+   COMPOSE_PROFILES=ontoserver
    TX_SERVER="http://nginx/fhir"
    ```
 
-3. **Start with Ontoserver profile:**
-   ```bash
-   docker compose --profile ontoserver up -d
-   ```
-   
    The setup works as follows:
    - Validator connects to nginx via HTTP
    - Nginx proxies requests to MII Ontoserver via HTTPS
@@ -219,11 +215,10 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
 ### Using Other Terminology Servers
 
 **For a local server without authentication (e.g., HAPI FHIR):**
+- Set `COMPOSE_PROFILES` to `blaze` in `.env`
 - Set `TX_SERVER` to `http://your-server:port/fhir` in `.env`
-- Use the blaze profile: `docker compose --profile blaze up -d`
 
 **For other authenticated servers:**
 - Follow steps similar to MII Ontoserver setup
 - Update `nginx/nginx.conf` with correct URL and certificate paths
-- Use the ontoserver profile: `docker compose --profile ontoserver up -d`
-
+- Use the ontoserver profile by setting `COMPOSE_PROFILES` to `ontoserver` in `.env`

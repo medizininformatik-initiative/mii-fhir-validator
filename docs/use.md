@@ -7,15 +7,17 @@
 Start the FHIR Validator with the local Blaze terminology server:
 
 ```bash
-docker compose --profile blaze up -d
+docker compose up -d
 ```
 
-### Ontoserver Profile
+### Ontoserver Profile (Alternate)
 
-Start the FHIR Validator with the MII Ontoserver via nginx proxy (requires client certificates in `nginx/certs/`):
+Use the ontoserver profile by setting `COMPOSE_PROFILES` to `ontoserver` in `.env` before first start (else run a `docker compose down` before).
+
+After that start the FHIR Validator with the MII Ontoserver via nginx proxy (requires client certificates in `nginx/certs/`):
 
 ```bash
-docker compose --profile ontoserver up -d
+docker compose up -d
 ```
 
 ### Loading Terminology Resources into Blaze
@@ -105,7 +107,7 @@ SNOMED CT release files must still be present in `snomed-ct-release/` for Blaze 
 If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup and may require internet access. To pre-cache them, run the validator once while online:
 
 ```bash
-docker compose --profile blaze up -d
+docker compose up -d
 # Wait for the validator to finish downloading packages:
 docker compose logs -f validator
 # Once ready:

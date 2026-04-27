@@ -38,7 +38,7 @@ Docker Compose reads `.env` automatically. The `.env.default` file contains sens
 ## Step 4: Start Services
 
 ```bash
-docker compose --profile blaze up -d
+docker compose up -d
 ```
 
 This starts:
@@ -81,11 +81,12 @@ To develop against the MII Ontoserver instead of local Blaze:
    ```
 2. Update `.env`:
    ```
+   COMPOSE_PROFILES=ontoserver
    TX_SERVER="http://nginx/fhir"
    ```
-3. Start with the ontoserver profile:
+3. Start with this ontoserver profile:
    ```bash
-   docker compose --profile ontoserver up -d
+   docker compose up -d
    ```
 
 > [!IMPORTANT]
