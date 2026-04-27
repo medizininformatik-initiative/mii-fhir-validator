@@ -1,7 +1,11 @@
 #!/bin/bash -e
 
 script_dir="$(dirname "$(readlink -f "$0")")"
-base="http://localhost:8082/fhir"
+
+# FHIR base URL of the terminology server
+# Configurable by env variable TX_SERVER
+# If this env variable not set, use default http://localhost:8082/fhir
+base="${TX_SERVER:-http://localhost:8082/fhir}"
 
 upload_file() {
   local filename="$1"
