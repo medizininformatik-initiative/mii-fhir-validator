@@ -1,7 +1,7 @@
 services:
   validator:
     # Check https://github.com/medizininformatik-initiative/mii-fhir-validator/releases for available versions
-    image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
+    image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.7
     # To build locally from source instead:
     # build:
     #   context: .
