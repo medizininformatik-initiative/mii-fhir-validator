@@ -28,6 +28,22 @@ HTTP connections are enabled automatically when `TX_SERVER` starts with `http://
 
 ---
 
+#### `TX_SERVER_USERNAME`
+
+Username for basic authentication against the terminology server. Must be set together with `TX_SERVER_PASSWORD`. Requires `TX_SERVER` to be set.
+
+**Default:** *(unset)*
+
+---
+
+#### `TX_SERVER_PASSWORD`
+
+Password for basic authentication against the terminology server. Must be set together with `TX_SERVER_USERNAME`. Requires `TX_SERVER` to be set.
+
+**Default:** *(unset)*
+
+---
+
 #### `FHIR_VERSION`
 
 FHIR version used for validation.
@@ -92,6 +108,19 @@ For the complete advisor file format and matching behavior, see the HL7 Validato
 The FHIR Validator CLI requires explicit `allowHttp: true` configuration to connect to HTTP (non-HTTPS) terminology servers. The container handles this automatically: when `TX_SERVER` starts with `http://`, a `fhir-settings.json` is generated at startup with `allowHttp: true` for that URL and passed to the validator. For HTTPS or unset `TX_SERVER`, no `fhir-settings.json` is generated.
 
 No manual `fhir-settings.json` management is needed — setting `TX_SERVER` in `.env` is sufficient.
+
+## Basic Authentication
+
+To connect to a terminology server protected with basic authentication, set `TX_SERVER_USERNAME` and `TX_SERVER_PASSWORD` in `.env`. Both must be set together. The container will automatically generate a `fhir-settings.json` with `authenticationType: basic` at startup.
+
+When the terminology server uses plain HTTP (`http://`) and basic auth credentials are provided, both `allowHttp: true` and the credentials are included in the generated configuration.
+
+| `TX_SERVER` scheme | Credentials set | Generated config |
+|---|---|---|
+| `http://` | No | `authenticationType: none`, `allowHttp: true` |
+| `https://` | No | no `fhir-settings.json` |
+| `http://` | Yes | `authenticationType: basic` + credentials + `allowHttp: true` |
+| `https://` | Yes | `authenticationType: basic` + credentials |
 
 ## Blaze Terminology Server
 
