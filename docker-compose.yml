@@ -13,6 +13,8 @@ services:
       - JAVA_OPTS=${JAVA_OPTS}
       - FHIR_VERSION=${FHIR_VERSION:-4.0}
       - TX_SERVER=${TX_SERVER:-http://blaze-terminology:8080/fhir}
+      - TX_SERVER_USERNAME=${TX_SERVER_USERNAME:-}
+      - TX_SERVER_PASSWORD=${TX_SERVER_PASSWORD:-}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - IG_PARAMS=${IG_PARAMS}

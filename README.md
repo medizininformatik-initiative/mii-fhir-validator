@@ -218,6 +218,10 @@ To use the **MII Service Unit Terminology Server** at `https://ontoserver.mii-te
 - Set `COMPOSE_PROFILES` to `blaze` in `.env`
 - Set `TX_SERVER` to `http://your-server:port/fhir` in `.env`
 
+**For a server with basic authentication:**
+- Set `COMPOSE_PROFILES` to `blaze` in `.env`
+- Set `TX_SERVER`, `TX_SERVER_USERNAME`, and `TX_SERVER_PASSWORD` in `.env`
+
 **For other authenticated servers:**
 - Follow steps similar to MII Ontoserver setup
 - Update `nginx/nginx.conf` with correct URL and certificate paths
