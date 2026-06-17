@@ -2,6 +2,26 @@
 
 set -eu
 
+FHIR_HOME="${FHIR_HOME:-/root}"
+DEFAULT_CACHE="/app/fhir-cache"
+CACHE_HOME="${FHIR_HOME}"
+
+if [ "${FHIR_CACHE_SEED:-true}" = "true" ]; then
+  pkgs="${FHIR_HOME}/.fhir/packages"
+  if [ ! -e "$pkgs" ] || [ -z "$(ls -A "$pkgs" 2>/dev/null)" ]; then
+    if mkdir -p "$pkgs" 2>/dev/null && cp -r /app/fhir-cache/.fhir/packages/. "$pkgs/" 2>/dev/null; then
+      echo "Seeded FHIR package cache into ${pkgs}"
+    else
+      echo "FHIR_HOME not writable; using baked-in read-only cache at ${DEFAULT_CACHE}"
+      CACHE_HOME="${DEFAULT_CACHE}"
+    fi
+  else
+    echo "FHIR cache at ${pkgs} already populated; skipping seed"
+  fi
+fi
+
+export JAVA_TOOL_OPTIONS="-Duser.home=${CACHE_HOME} ${JAVA_TOOL_OPTIONS:-}"
+
 # Validate credential environment variables
 if { [ -n "${TX_SERVER_USERNAME:-}" ] && [ -z "${TX_SERVER_PASSWORD:-}" ]; } || \
    { [ -z "${TX_SERVER_USERNAME:-}" ] && [ -n "${TX_SERVER_PASSWORD:-}" ]; }; then

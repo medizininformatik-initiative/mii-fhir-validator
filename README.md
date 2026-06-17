@@ -100,6 +100,8 @@ Configuration is split into two tiers:
 
 **Built-in defaults in `docker-compose.yml` (override in `.env` only if needed):**
 - `FHIR_VERSION` - FHIR version (default: `4.0`)
+- `FHIR_HOME` - FHIR package cache home directory (default: `/root`)
+- `FHIR_CACHE_SEED` - Seed writable cache from baked-in defaults at startup (default: `true`)
 - `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
 - `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
 - `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
@@ -162,7 +164,7 @@ docker compose up -d
 docker compose down
 ```
 
-The `fhir-package-cache` Docker volume persists the cache across container restarts.
+The `fhir-package-cache` Docker volume persists the cache at `$FHIR_HOME/.fhir/packages` across container restarts. By default (`FHIR_CACHE_SEED=true`), the baked-in MII IG cache is seeded into an empty volume on first start, enabling offline operation immediately. If the volume is read-only, the validator falls back to the baked-in cache automatically.
 
 To load IGs from the `igs/` directory:
 ```bash
@@ -170,6 +172,73 @@ IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
 ```
 
 **Note:** A terminology service (Blaze) is still required for offline terminology validation (CodeSystem, ValueSet bindings, code validation). SNOMED CT release files must be provided locally — see [snomed-ct-release/README.md](snomed-ct-release/README.md).
+
+## Kubernetes / Non-Root Deployment
+
+The image supports deployment under Kubernetes with `runAsNonRoot: true` and `readOnlyRootFilesystem: true`. The FHIR package cache location and seeding behavior are controlled by `FHIR_HOME` and `FHIR_CACHE_SEED`.
+
+### Cache Modes
+
+The entrypoint supports three modes based on `FHIR_CACHE_SEED` and mount writability:
+
+1. **Seeded cache** (default, `FHIR_CACHE_SEED=true`): The baked-in MII IG cache is copied into `$FHIR_HOME/.fhir/packages` on first start if the target is empty and writable. If the target is not writable, the validator falls back to the baked-in read-only cache automatically.
+
+2. **Read-only fallback** (automatic with `FHIR_CACHE_SEED=true`): When the package cache mount is read-only, the validator uses the baked-in cache directly. No write access to the package cache is required when no packages are downloaded at runtime.
+
+3. **Blank cache** (`FHIR_CACHE_SEED=false`): The validator starts with an empty cache and downloads packages at runtime. Requires a writable `FHIR_HOME` mount.
+
+### Required Configuration
+
+For Kubernetes with `readOnlyRootFilesystem: true`:
+- Set `FHIR_HOME` to a writable mount path (e.g., `/var/lib/fhir`) if you need runtime package downloads
+- Mount a writable volume (emptyDir or PVC) at `$FHIR_HOME/.fhir/packages` for the package cache
+- Mount a writable volume at `/tmp` for terminology cache and `fhir-settings.json`
+- The terminology cache (`TX_CACHE_DIR`, default `/tmp/tx-cache`) must be writable
+- Set `TX_LOG=""` to disable terminology logging (reduces write surface)
+
+With `FHIR_CACHE_SEED=true` (default), the package cache may be mounted **read-only** when no runtime package downloads are needed — the entrypoint automatically falls back to the baked-in cache.
+
+### Example: Offline-First with Read-Only Package Cache
+
+```yaml
+securityContext:
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+env:
+  - name: FHIR_HOME
+    value: "/var/lib/fhir"
+  - name: FHIR_CACHE_SEED
+    value: "true"
+volumeMounts:
+  - name: fhir-cache
+    mountPath: /var/lib/fhir/.fhir/packages
+    readOnly: true  # Read-only is fine with FHIR_CACHE_SEED=true
+  - name: tx-cache
+    mountPath: /tmp/tx-cache
+  - name: tmp
+    mountPath: /tmp
+volumes:
+  - name: fhir-cache
+    emptyDir: { }
+  - name: tx-cache
+    emptyDir: { }
+  - name: tmp
+    emptyDir: { }
+```
+
+### Example: Blank Cache with Runtime Downloads
+
+```yaml
+env:
+  - name: FHIR_HOME
+    value: "/var/lib/fhir"
+  - name: FHIR_CACHE_SEED
+    value: "false"
+volumeMounts:
+  - name: fhir-cache
+    mountPath: /var/lib/fhir/.fhir/packages  # Must be writable
+```
 
 ## Alternative: MII Ontoserver Setup
 

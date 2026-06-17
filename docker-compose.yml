@@ -12,6 +12,8 @@ services:
     environment:
       - JAVA_OPTS=${JAVA_OPTS}
       - FHIR_VERSION=${FHIR_VERSION:-4.0}
+      - FHIR_HOME=${FHIR_HOME:-/root}
+      - FHIR_CACHE_SEED=${FHIR_CACHE_SEED:-true}
       - TX_SERVER=${TX_SERVER:-http://blaze-terminology:8080/fhir}
       - TX_SERVER_USERNAME=${TX_SERVER_USERNAME:-}
       - TX_SERVER_PASSWORD=${TX_SERVER_PASSWORD:-}
@@ -20,7 +22,7 @@ services:
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
-      - fhir-package-cache:/root/.fhir/packages
+      - fhir-package-cache:${FHIR_HOME}/.fhir/packages
       - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       # Optional: override the built-in advisor configuration
       # - ./validator/advisor.json:/app/validator/advisor.json:ro
@@ -45,13 +47,15 @@ services:
     environment:
       - JAVA_OPTS=${JAVA_OPTS}
       - FHIR_VERSION=${FHIR_VERSION:-4.0}
+      - FHIR_HOME=${FHIR_HOME:-/root}
+      - FHIR_CACHE_SEED=${FHIR_CACHE_SEED:-true}
       - TX_SERVER=${TX_SERVER:-http://nginx/fhir}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
-      - fhir-package-cache:/root/.fhir/packages
+      - fhir-package-cache:${FHIR_HOME}/.fhir/packages
       - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       - ./nginx/certs:/certs:ro
       # Optional: override the built-in advisor configuration
