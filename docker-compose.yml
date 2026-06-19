@@ -22,7 +22,7 @@ services:
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
-      - fhir-package-cache:${FHIR_HOME}/.fhir/packages
+      - fhir-package-cache:${FHIR_HOME:-/root}/.fhir/packages
       - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       # Optional: override the built-in advisor configuration
       # - ./validator/advisor.json:/app/validator/advisor.json:ro
@@ -55,7 +55,7 @@ services:
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
-      - fhir-package-cache:${FHIR_HOME}/.fhir/packages
+      - fhir-package-cache:${FHIR_HOME:-/root}/.fhir/packages
       - tx-cache:${TX_CACHE_DIR:-/tmp/tx-cache}
       - ./nginx/certs:/certs:ro
       # Optional: override the built-in advisor configuration
