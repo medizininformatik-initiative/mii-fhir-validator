@@ -67,7 +67,7 @@ services:
     profiles: ["ontoserver"]
 
   blaze:
-    image: samply/blaze:1.6.2@sha256:4148d6cc9daf1f7237270878535d176b1e24b8d4092dcf636d42778c3a49dbc8
+    image: samply/blaze:1.9.0@sha256:cba859fb460df3938792226f16ba9bde32bf8dd9edeeadffbd818bccdcce56dc
     container_name: blaze-terminology
     ports:
       - "8082:8080"
