@@ -2,7 +2,7 @@
 
 The MII FHIR Validator is configured via environment variables. Configuration is split into two tiers:
 
-- **`JAVA_OPTS` and `IG_PARAMS`** are set via `.env` (copy `.env.default` as a starting point).
+- **`JAVA_OPTS`, `IG_PARAMS`, and optional forward proxy settings** are set via `.env` (copy `.env.default` as a starting point).
 - **`FHIR_VERSION`, `TX_SERVER`, `TX_CACHE_DIR`, `TX_LOG`** have built-in defaults in `docker-compose.yml` and only need to be set in `.env` if you want to override them.
 
 ```bash
@@ -61,6 +61,24 @@ JVM options passed to the validator process. Increase `-Xmx` if you encounter ou
 ::: tip Memory requirements
 Large bundles and the initial terminology cache warm-up can require significant Java heap space. `-Xmx16g` is recommended. Otherwise, `-Xmx8g` is usually sufficient for single-resource validation.
 :::
+
+---
+
+## Forward Proxy
+
+Outbound HTTP and HTTPS connections made by the validator can optionally be routed through a forward proxy. Leave both `FORWARD_PROXY_HOST` and `FORWARD_PROXY_PORT` unset to retain the default direct-connection behavior.
+
+```dotenv
+FORWARD_PROXY_HOST="proxy.example.org"
+FORWARD_PROXY_PORT="3128"
+FORWARD_PROXY_NON_PROXY_HOSTS="localhost|127.*|[::1]|blaze|blaze-terminology|nginx|*.local|*.svc|*.cluster.local"
+```
+
+`FORWARD_PROXY_HOST` must contain only the hostname or IP address, without `http://` or `https://`. Host and port must be configured together. If only one is set, the container exits with an error.
+
+`FORWARD_PROXY_NON_PROXY_HOSTS` uses Java's pipe-separated host pattern syntax. Its default keeps the local Blaze and nginx services, loopback addresses, and common container-orchestration domains outside the forward proxy. The entrypoint translates these settings into the JVM's HTTP and HTTPS proxy properties; no changes to `JAVA_OPTS` are required.
+
+Standard `HTTP_PROXY` and `HTTPS_PROXY` environment variables alone do not configure the Java validator. Use the variables above, or configure the equivalent JVM properties manually in `JAVA_OPTS`.
 
 ---
 

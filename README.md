@@ -46,7 +46,7 @@ For access to the **MII Service Unit Terminology Server** (`ontoserver.mii-terms
    cp .env.default .env
    # Edit .env to customize settings
    ```
-   Docker Compose will read `.env` for configuration. Infrastructure variables (`TX_SERVER`, `FHIR_VERSION`, `TX_CACHE_DIR`, `TX_LOG`) have built-in defaults in `docker-compose.yml` — you only need `.env` to set `JAVA_OPTS` and `IG_PARAMS`, or to override those defaults. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customizations.
+   Docker Compose will read `.env` for configuration. Infrastructure variables (`TX_SERVER`, `FHIR_VERSION`, `TX_CACHE_DIR`, `TX_LOG`) have built-in defaults in `docker-compose.yml` — you only need `.env` to set `JAVA_OPTS`, `IG_PARAMS`, optional forward proxy settings, or to override those defaults. `.env.default` documents all available variables and is tracked in git; `.env` is gitignored for local customizations.
 
 6. **Start the services:**
    ```bash
@@ -97,6 +97,11 @@ Configuration is split into two tiers:
 **Set via `.env` (required for basic use):**
 - `JAVA_OPTS` - JVM memory settings (default: `-Xmx16g`)
 - `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
+
+**Optional forward proxy settings:**
+- `FORWARD_PROXY_HOST` - Forward proxy hostname or IP address, without a URL scheme
+- `FORWARD_PROXY_PORT` - Forward proxy port; must be set together with `FORWARD_PROXY_HOST`
+- `FORWARD_PROXY_NON_PROXY_HOSTS` - Pipe-separated Java host patterns that bypass the proxy
 
 **Built-in defaults in `docker-compose.yml` (override in `.env` only if needed):**
 - `FHIR_VERSION` - FHIR version (default: `4.0`)
