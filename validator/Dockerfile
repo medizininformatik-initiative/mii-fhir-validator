@@ -27,7 +27,7 @@ COPY --from=fetch-validator /validator_cli.jar /app/validator_cli.jar
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0 \
-  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 \
+  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.1 \
   -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.3 \
   -ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.1 \
   -ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.1-rc-2 \
