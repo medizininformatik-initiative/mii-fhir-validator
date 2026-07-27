@@ -20,7 +20,42 @@ if [ "${FHIR_CACHE_SEED:-true}" = "true" ]; then
   fi
 fi
 
-export JAVA_TOOL_OPTIONS="-Duser.home=${CACHE_HOME} ${JAVA_TOOL_OPTIONS:-}"
+FORWARD_PROXY_HOST="${FORWARD_PROXY_HOST:-}"
+FORWARD_PROXY_PORT="${FORWARD_PROXY_PORT:-}"
+FORWARD_PROXY_NON_PROXY_HOSTS="${FORWARD_PROXY_NON_PROXY_HOSTS:-localhost|127.*|[::1]|blaze|blaze-terminology|nginx|*.local|*.svc|*.cluster.local}"
+
+if { [ -n "$FORWARD_PROXY_HOST" ] && [ -z "$FORWARD_PROXY_PORT" ]; } || \
+   { [ -z "$FORWARD_PROXY_HOST" ] && [ -n "$FORWARD_PROXY_PORT" ]; }; then
+  echo "Error: FORWARD_PROXY_HOST and FORWARD_PROXY_PORT must either both be set or both be unset." >&2
+  exit 1
+fi
+
+JAVA_TOOL_OPTIONS="-Duser.home=${CACHE_HOME} ${JAVA_TOOL_OPTIONS:-}"
+
+if [ -n "$FORWARD_PROXY_HOST" ] && [ -n "$FORWARD_PROXY_PORT" ]; then
+  case "$FORWARD_PROXY_HOST" in
+    *://*|*[[:space:]]*)
+      echo "Error: FORWARD_PROXY_HOST must be a hostname or IP address without a URL scheme or whitespace." >&2
+      exit 1
+      ;;
+  esac
+
+  case "$FORWARD_PROXY_PORT" in
+    *[!0-9]*)
+      echo "Error: FORWARD_PROXY_PORT must be numeric." >&2
+      exit 1
+      ;;
+  esac
+
+  JAVA_TOOL_OPTIONS="-Dhttp.proxyHost=${FORWARD_PROXY_HOST} \
+-Dhttp.proxyPort=${FORWARD_PROXY_PORT} \
+-Dhttps.proxyHost=${FORWARD_PROXY_HOST} \
+-Dhttps.proxyPort=${FORWARD_PROXY_PORT} \
+-Dhttp.nonProxyHosts=${FORWARD_PROXY_NON_PROXY_HOSTS} \
+${JAVA_TOOL_OPTIONS}"
+fi
+
+export JAVA_TOOL_OPTIONS
 
 # Validate credential environment variables
 if { [ -n "${TX_SERVER_USERNAME:-}" ] && [ -z "${TX_SERVER_PASSWORD:-}" ]; } || \

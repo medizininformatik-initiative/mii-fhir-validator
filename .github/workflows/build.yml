@@ -34,7 +34,17 @@ jobs:
           tags: mii-fhir-validator:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
+      - name: Test incomplete forward proxy configuration
+        run: |
+          if docker run --rm \
+            -e FHIR_CACHE_SEED=false \
+            -e FORWARD_PROXY_HOST=proxy.invalid \
+            mii-fhir-validator:test; then
+            echo "ERROR: Validator accepted a forward proxy host without a port"
+            exit 1
+          fi
+
       - name: Download MII terminology packages
         run: ./scripts/terminology/get-mii-terminology.sh install
 
@@ -55,12 +65,17 @@ jobs:
       
       - name: Test validator image with Blaze
         run: |
-          # Start validator with direct HTTP connection to Blaze
+          # Use an unreachable forward proxy and bypass it for the internal Blaze service.
+          # Successful validation confirms that the proxy properties are applied without
+          # routing internal terminology traffic through the proxy.
           docker run -d --name test-validator \
             --network mii-fhir-validator_fhir-network \
             -p 8080:8080 \
             -e TX_SERVER=http://blaze-terminology:8080/fhir \
             -e JAVA_OPTS=-Xmx4g \
+            -e FORWARD_PROXY_HOST=proxy.invalid \
+            -e FORWARD_PROXY_PORT=3128 \
+            -e FORWARD_PROXY_NON_PROXY_HOSTS=blaze-terminology \
             mii-fhir-validator:test
           
           # Wait for validator to start
@@ -76,6 +91,12 @@ jobs:
           
           if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
             echo "ERROR: Validator failed to start"
+            docker logs test-validator
+            exit 1
+          fi
+
+          if ! docker logs test-validator 2>&1 | grep -Fq -- "-Dhttp.proxyHost=proxy.invalid"; then
+            echo "ERROR: Forward proxy JVM properties were not applied"
             docker logs test-validator
             exit 1
           fi

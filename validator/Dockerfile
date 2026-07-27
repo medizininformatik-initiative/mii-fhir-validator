@@ -1,5 +1,5 @@
 FROM alpine AS fetch-validator
-ARG VALIDATOR_VERSION=6.9.4
+ARG VALIDATOR_VERSION=6.9.11
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
@@ -27,8 +27,8 @@ COPY --from=fetch-validator /validator_cli.jar /app/validator_cli.jar
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.meta#2026.0.0 \
-  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.0 \
-  -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.1 \
+  -ig de.medizininformatikinitiative.kerndatensatz.base#2026.0.1 \
+  -ig de.medizininformatikinitiative.kerndatensatz.laborbefund#2026.0.3 \
   -ig de.medizininformatikinitiative.kerndatensatz.medikation#2026.0.1 \
   -ig de.medizininformatikinitiative.kerndatensatz.consent#2026.0.1-rc-2 \
   -ig de.medizininformatikinitiative.kerndatensatz.bildgebung#2026.0.0 \
@@ -36,11 +36,16 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.molgen#2026.0.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.onkologie#2026.0.3 \
   -ig de.medizininformatikinitiative.kerndatensatz.patho#2026.0.2 \
-  -ig de.medizininformatikinitiative.kerndatensatz.icu#2026.0.2 \
+  -ig de.medizininformatikinitiative.kerndatensatz.icu#2025.0.4 \
+  -ig de.medizininformatikinitiative.kerndatensatz.dokument#2026.0.1 \
+  -ig de.medizininformatikinitiative.kerndatensatz.mikrobiologie#2027.0.0-alpha.5 \
+  -ig de.medizininformatikinitiative.kerndatensatz.mtb#2026.0.0 \
+  -ig de.medizininformatikinitiative.kerndatensatz.pros#2026.4.1 \
+  -ig de.medizininformatikinitiative.kerndatensatz.seltene#2026.0.1 \
 "
 
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
-RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0
+RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a
 RUN chmod -R a+rX /app/fhir-cache
 
 # Create directory for IGs
