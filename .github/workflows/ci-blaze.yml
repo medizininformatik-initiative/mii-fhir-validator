@@ -37,7 +37,7 @@ jobs:
       run: cp .env.default .env
 
     - name: Start services (CI mode) with Blaze profile (which is set by default in .env by step before)
-      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --wait
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --build --wait
     
     - name: Upload MII terminology to Blaze
       run: ./scripts/terminology/upload-terminology.sh
