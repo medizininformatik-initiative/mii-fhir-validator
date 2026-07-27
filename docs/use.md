@@ -79,7 +79,7 @@ To connect to any HTTP terminology server, set `TX_SERVER` to an `http://` URL. 
 docker run -d -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
   --network your-network \
-  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.6
+  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.8
 ```
 
 ## Loading Additional Implementation Guides
