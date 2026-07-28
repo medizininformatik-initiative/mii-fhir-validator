@@ -42,8 +42,9 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   "
 
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
-RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a
-RUN chmod -R a+rX /app/fhir-cache
+RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a \
+  && rm -rf /app/fhir-cache/.fhir/packages/hl7.fhir.r4.examples* \
+  && chmod -R a+rX /app/fhir-cache
 
 # Create directory for IGs
 RUN mkdir -p /igs
