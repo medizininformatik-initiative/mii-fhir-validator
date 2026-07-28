@@ -3,7 +3,7 @@ ARG VALIDATOR_VERSION=6.9.11
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:25-jre
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
 LABEL org.opencontainers.image.description="A FHIR validation service pre-configured for MII Implementation Guides"
@@ -42,7 +42,7 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.mtb#2026.0.0 \
   -ig de.medizininformatikinitiative.kerndatensatz.pros#2026.4.1 \
   -ig de.medizininformatikinitiative.kerndatensatz.seltene#2026.0.1 \
-"
+  "
 
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
 RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a
