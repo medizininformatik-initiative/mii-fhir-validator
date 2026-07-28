@@ -3,16 +3,13 @@ ARG VALIDATOR_VERSION=6.9.11
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:25.0.3_9-jre-ubi10-minimal
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
 LABEL org.opencontainers.image.description="A FHIR validation service pre-configured for MII Implementation Guides"
 LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.io/mii-fhir-validator/"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
-
-# Install required tools
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
 WORKDIR /app
