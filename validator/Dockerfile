@@ -11,15 +11,21 @@ LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
 
-# Create working directory
+# Create working directory and directory for IGs
 WORKDIR /app
+
+USER 10001:10001
 
 # Copy license files
 COPY LICENSE /licenses/LICENSE
 COPY THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 
 # Copy validator JAR
-COPY --from=fetch-validator /validator_cli.jar /app/validator_cli.jar
+COPY --from=fetch-validator /tmp/validator_cli.jar /app/validator_cli.jar
+
+# Für Builds hinter einem Proxy, z.B.:
+#   --build-arg JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=proxy.example -Dhttps.proxyPort=8080"
+ARG JAVA_TOOL_OPTIONS=""
 
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
@@ -42,8 +48,7 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   "
 
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
-RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a \
-  && rm -rf /app/fhir-cache/.fhir/packages/hl7.fhir.r4.examples* \
+RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a -proxy "10.10.6.12:8080" \
   && chmod -R a+rX /app/fhir-cache
 
 # Create directory for IGs
@@ -59,6 +64,5 @@ ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 COPY validator/advisor.json /app/validator/advisor.json
 
 # Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
-COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+COPY --chmod=0555 validator/docker-entrypoint.sh /app/docker-entrypoint.sh
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
