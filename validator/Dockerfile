@@ -1,7 +1,7 @@
-FROM alpine AS fetch-validator
+FROM curlimages/curl:8.21.0 AS fetch-validator
 ARG VALIDATOR_VERSION=6.9.11
-RUN wget -O /validator_cli.jar \
-  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
+RUN curl -fsSL -o /tmp/validator_cli.jar \
+  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.JAR
 
 FROM eclipse-temurin:25.0.3_9-jre-ubi10-minimal
 
