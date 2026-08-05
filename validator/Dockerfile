@@ -11,10 +11,10 @@ LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
 
+USER 10001:10001
+
 # Create working directory and directory for IGs
 WORKDIR /app
-
-USER 10001:10001
 
 # Copy license files
 COPY LICENSE /licenses/LICENSE
