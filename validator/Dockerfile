@@ -1,9 +1,9 @@
-FROM alpine AS fetch-validator
+FROM curlimages/curl:8.21.0 AS fetch-validator
 ARG VALIDATOR_VERSION=6.9.11
-RUN wget -O /validator_cli.jar \
-  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
+RUN curl -fsSL -o /tmp/validator_cli.jar \
+  https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.JAR
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:25.0.3_9-jre-ubi10-minimal
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
 LABEL org.opencontainers.image.description="A FHIR validation service pre-configured for MII Implementation Guides"
@@ -11,10 +11,13 @@ LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
 
-# Install required tools
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+# Create directory for IGs
+RUN mkdir -p /igs \
+  && chown 10001:10001 /igs
 
-# Create working directory
+USER 10001:10001
+
+# Create working directory and directory for IGs
 WORKDIR /app
 
 # Copy license files
@@ -22,7 +25,11 @@ COPY LICENSE /licenses/LICENSE
 COPY THIRD_PARTY_NOTICES.md /licenses/THIRD_PARTY_NOTICES.md
 
 # Copy validator JAR
-COPY --from=fetch-validator /validator_cli.jar /app/validator_cli.jar
+COPY --from=fetch-validator /tmp/validator_cli.jar /app/validator_cli.jar
+
+# Für Builds hinter einem Proxy, z.B.:
+#   --build-arg JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=proxy.example -Dhttps.proxyPort=8080"
+ARG JAVA_TOOL_OPTIONS=""
 
 # IG list as build argument (keep in sync with IG_PARAMS in .env.default)
 ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
@@ -42,14 +49,11 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
   -ig de.medizininformatikinitiative.kerndatensatz.mtb#2026.0.0 \
   -ig de.medizininformatikinitiative.kerndatensatz.pros#2026.4.1 \
   -ig de.medizininformatikinitiative.kerndatensatz.seltene#2026.0.1 \
-"
+  "
 
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
-RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a
-RUN chmod -R a+rX /app/fhir-cache
-
-# Create directory for IGs
-RUN mkdir -p /igs
+RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a \
+  && chmod -R a+rX /app/fhir-cache
 
 # Expose validator port
 EXPOSE 8080
@@ -61,6 +65,5 @@ ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 COPY validator/advisor.json /app/validator/advisor.json
 
 # Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
-COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+COPY --chmod=0555 validator/docker-entrypoint.sh /app/docker-entrypoint.sh
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
