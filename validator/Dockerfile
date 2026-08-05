@@ -11,6 +11,10 @@ LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
 
+# Create directory for IGs
+RUN mkdir -p /igs \
+  && chown 10001:10001 /igs
+
 USER 10001:10001
 
 # Create working directory and directory for IGs
@@ -50,9 +54,6 @@ ARG IG_LIST="-ig de.basisprofil.r4#1.5.4 \
 # Pre-build FHIR package cache with MII IGs (downloads packages during build)
 RUN java -Xmx4g -Duser.home="/app/fhir-cache" -jar validator_cli.jar ${IG_LIST} -version 4.0 -tx n/a \
   && chmod -R a+rX /app/fhir-cache
-
-# Create directory for IGs
-RUN mkdir -p /igs
 
 # Expose validator port
 EXPOSE 8080
