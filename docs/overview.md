@@ -58,7 +58,43 @@ The validator connects to an nginx reverse proxy that authenticates to the MII S
 
 ## Pre-configured Implementation Guides
 
-The Docker image ships with a set of MII IGs pre-cached at build time. Refer to the list of IGs here:
+The Docker image ships with a set of MII IGs and their dependencies pre-cached at build time.
 
-- [`validator/Dockerfile`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/main/validator/Dockerfile) — `ARG IG_LIST` defines the IGs baked into the image
-- [`.env.default`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/main/.env.default) — `IG_PARAMS` defines the default IGs loaded at runtime via `docker-compose.yml`
+### Validating the 2026 MII Core Data Set
+
+Use release **`v0.0.1-alpha.9`** to validate against the **2026 MII Core Data Set (CDS / KDS) Implementation Guides**. Pin the Docker image to this version to retain the 2026 package set when development moves to the 2027 IGs:
+
+```yaml
+image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.9
+```
+
+For the 2026 release line, it was agreed to **pre-apply the microbiology IG from the 2027 release line** and **keep ICU on its 2025 version**. Accordingly, this validator release includes microbiology `2027.0.0-ballot2` and ICU `2025.0.4`. These are intentional exceptions to the 2026 package versions. The consent IG is included at `2026.0.1-rc-4`.
+
+The following table lists all explicitly configured IG packages in `v0.0.1-alpha.9`; transitive dependencies are also cached in the image.
+
+| Package | Version |
+| --- | --- |
+| `de.basisprofil.r4` | `1.5.4` |
+| `de.medizininformatikinitiative.kerndatensatz.meta` | `2026.0.0` |
+| `de.medizininformatikinitiative.kerndatensatz.base` | `2026.0.1` |
+| `de.medizininformatikinitiative.kerndatensatz.laborbefund` | `2026.0.3` |
+| `de.medizininformatikinitiative.kerndatensatz.medikation` | `2026.0.1` |
+| `de.medizininformatikinitiative.kerndatensatz.consent` | `2026.0.1-rc-4` |
+| `de.medizininformatikinitiative.kerndatensatz.bildgebung` | `2026.0.0` |
+| `de.medizininformatikinitiative.kerndatensatz.biobank` | `2026.0.1` |
+| `de.medizininformatikinitiative.kerndatensatz.molgen` | `2026.0.4` |
+| `de.medizininformatikinitiative.kerndatensatz.onkologie` | `2026.0.3` |
+| `de.medizininformatikinitiative.kerndatensatz.patho` | `2026.0.2` |
+| `de.medizininformatikinitiative.kerndatensatz.icu` | `2025.0.4` |
+| `de.medizininformatikinitiative.kerndatensatz.dokument` | `2026.0.1` |
+| `de.medizininformatikinitiative.kerndatensatz.mikrobiologie` | `2027.0.0-ballot2` |
+| `de.medizininformatikinitiative.kerndatensatz.mtb` | `2026.0.1` |
+| `de.medizininformatikinitiative.kerndatensatz.pros` | `2026.7.0` |
+| `de.medizininformatikinitiative.kerndatensatz.seltene` | `2026.0.1` |
+
+The release configuration is recorded in:
+
+- [`validator/Dockerfile` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/validator/Dockerfile) — `ARG IG_LIST` defines the IGs baked into the image.
+- [`.env.default` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/.env.default) — `IG_PARAMS` defines the default IGs loaded at runtime via `docker-compose.yml`.
+
+An existing `.env` file can override the image's default package set through `IG_PARAMS`. To use the 2026 set, align that variable with this release's `.env.default`, or leave it unset or empty to use the image defaults.
