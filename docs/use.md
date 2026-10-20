@@ -24,6 +24,8 @@ docker compose up -d
 
 ### Loading Terminology Resources into Blaze
 
+Release `v0.0.1-alpha.9` uses **MII terminology BOM `2026.8.25`** for the 2026 CDS setup. See [Terminology for the 2026 Release](overview.md#terminology-for-the-2026-release) for the package and version.
+
 After starting Blaze for the first time, upload the required MII terminology packages:
 
 ```bash
@@ -33,6 +35,8 @@ After starting Blaze for the first time, upload the required MII terminology pac
 # Wait for Blaze to be ready, then upload:
 ./scripts/terminology/upload-terminology.sh
 ```
+
+When upgrading an existing checkout to this release, run `./scripts/terminology/get-mii-terminology.sh update` before uploading the terminology again. This updates the locally generated `package-lock.json` to match the BOM version pinned in `scripts/terminology/package.json`.
 
 Without this step, terminology-dependent validation (CodeSystem lookups, ValueSet bindings) will fail.
 

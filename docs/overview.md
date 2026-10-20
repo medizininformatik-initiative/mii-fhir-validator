@@ -98,3 +98,17 @@ The release configuration is recorded in:
 - [`.env.default` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/.env.default) — `IG_PARAMS` defines the default IGs loaded at runtime via `docker-compose.yml`.
 
 An existing `.env` file can override the image's default package set through `IG_PARAMS`. To use the 2026 set, align that variable with this release's `.env.default`, or leave it unset or empty to use the image defaults.
+
+### Terminology for the 2026 Release
+
+Release `v0.0.1-alpha.9` pins the MII terminology bill of materials (BOM) to **`2026.8.25`**:
+
+| Package | Version |
+| --- | --- |
+| `@mii-termserv/de.medizininformatikinitiative.kerndatensatz.terminology.bill-of-materials` | `2026.8.25` |
+
+The BOM selects the terminology packages downloaded for the local Blaze terminology server. It is configured separately from the IG package list in [`scripts/terminology/package.json` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/scripts/terminology/package.json), using an exact version without a `^` range.
+
+Terminology package versions are distinct from the IG versions above. For example, this BOM includes ICU terminology `2026.0.2-suts.2` and microbiology-2027 terminology `2027.0.0-alpha.5-suts.2`; the configured IGs remain ICU `2025.0.4` and microbiology `2027.0.0-ballot2`.
+
+These terminology resources are downloaded and uploaded to Blaze separately from the validator image. Follow [Loading Terminology Resources into Blaze](use.md#loading-terminology-resources-into-blaze) to install them. The BOM does not configure an external terminology server such as the MII Ontoserver.
