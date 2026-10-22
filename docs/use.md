@@ -2,6 +2,8 @@
 
 ## Starting the Service
 
+For validation against the **2026 MII Core Data Set IGs**, use release **`v0.0.1-alpha.9`** (Docker image tag `0.0.1-alpha.9`). See [Pre-configured Implementation Guides](overview.md#pre-configured-implementation-guides) for the complete package list and the agreed microbiology and ICU version exceptions.
+
 ### Blaze Profile (Default)
 
 Start the FHIR Validator with the local Blaze terminology server:
@@ -22,6 +24,8 @@ docker compose up -d
 
 ### Loading Terminology Resources into Blaze
 
+Release `v0.0.1-alpha.9` uses **MII terminology BOM `2026.8.25`** for the 2026 CDS setup. See [Terminology for the 2026 Release](overview.md#terminology-for-the-2026-release) for the package and version.
+
 After starting Blaze for the first time, upload the required MII terminology packages:
 
 ```bash
@@ -31,6 +35,8 @@ After starting Blaze for the first time, upload the required MII terminology pac
 # Wait for Blaze to be ready, then upload:
 ./scripts/terminology/upload-terminology.sh
 ```
+
+When upgrading an existing checkout to this release, run `./scripts/terminology/get-mii-terminology.sh update` before uploading the terminology again. This updates the locally generated `package-lock.json` to match the BOM version pinned in `scripts/terminology/package.json`.
 
 Without this step, terminology-dependent validation (CodeSystem lookups, ValueSet bindings) will fail.
 
@@ -79,7 +85,7 @@ To connect to any HTTP terminology server, set `TX_SERVER` to an `http://` URL. 
 docker run -d -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
   --network your-network \
-  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.8
+  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.9
 ```
 
 ## Loading Additional Implementation Guides
