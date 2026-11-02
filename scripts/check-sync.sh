@@ -70,8 +70,9 @@ fi
 
 # 4. SNOMED CT release directory name
 snomed="$(grep -ohE 'SnomedCT_InternationalRF2_PRODUCTION_[0-9]{8}T[0-9]{6}Z' \
-  docker-compose.yml .github/workflows/build.yml .github/workflows/ci-blaze.yml snomed-ct-release/README.md | sort -u)"
-for f in docker-compose.yml .github/workflows/build.yml .github/workflows/ci-blaze.yml; do
+  docker-compose.yml .github/workflows/build.yml .github/workflows/ci-blaze.yml .github/workflows/snomed-cache.yml \
+  snomed-ct-release/README.md | sort -u)"
+for f in docker-compose.yml .github/workflows/build.yml .github/workflows/ci-blaze.yml .github/workflows/snomed-cache.yml; do
   grep -qE 'SnomedCT_InternationalRF2_PRODUCTION_[0-9]{8}T[0-9]{6}Z' "$f" || bad "$f does not name the SNOMED CT release"
 done
 if [[ "$(wc -l <<<"$snomed" | tr -d ' ')" -ne 1 ]]; then

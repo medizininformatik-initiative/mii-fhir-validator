@@ -28,6 +28,13 @@ Download the SNOMED CT International Edition and extract the release package int
 
 See `snomed-ct-release/README.md` for detailed instructions.
 
+With a [UMLS account](https://uts.nlm.nih.gov/uts/), you can also fetch the zip through the NLM download API, using the API key from your UTS profile:
+
+```bash
+UMLS_API_KEY=<your key> ./scripts/ci/download-snomed-ct.sh SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip
+unzip SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip -d snomed-ct-release
+```
+
 ## Step 2: Download MII Terminology Packages
 
 ```bash
@@ -112,11 +119,23 @@ The checks are layered. Pick the cheapest one that covers your change:
 | `make check-sync` | IG versions in `validator/Dockerfile`, `.env.default` and `docs/overview.md`; image tags; terminology BOM pin; SNOMED CT release name | nothing |
 | `make test-entrypoint` | `validator/docker-entrypoint.sh`: error messages and exit codes, proxy and terminology settings, Java arguments, package cache modes | Docker |
 | `make test-runner` | `scripts/test/validate-test-resources.sh` against canned responses | nothing |
+| `make test-snomed` | `scripts/ci/download-snomed-ct.sh`: source order, zip check, no secrets in output | `zip`, `unzip` |
 | `make test-hooks` | the Claude Code policy hooks in `.claude/hooks` | `jq` |
 | `make check` | all of the above | as above |
 | `make test` / `make test-file FILE=…` | validates `.github/test-resources/*.json` against the running validator | the stack, with terminology loaded |
 
 CI runs `make check STRICT=1` on every pull request to `develop` and `main` (`checks.yml`), the entrypoint tests against the built image (`build.yml`), and the `make test` script against a full Blaze stack (`ci-blaze.yml`).
+
+### SNOMED CT in CI
+
+`build.yml` and `ci-blaze.yml` get the SNOMED CT release through `.github/actions/snomed-ct-download`. It restores the zip from the Actions cache, and on a cache miss runs `scripts/ci/download-snomed-ct.sh` and saves the result to the cache straight away. The script tries two sources in order; each is skipped when its repository secret is not set, and at least one must be set:
+
+| Secret | Source |
+|---|---|
+| `SCT_DOWNLOAD_TOKEN` | share token on speicherwolke.uni-leipzig.de |
+| `UMLS_API_KEY` | NLM UTS download API (API key from a UTS profile); fallback when speicherwolke fails |
+
+GitHub drops cache entries that nobody has read for 7 days. `snomed-cache.yml` runs on `main` every 5 days and on demand (`gh workflow run snomed-cache.yml`), so the entry stays readable for every branch and pull request.
 
 To build the documentation, run `make docs-install` once (runs `npm ci` in `docs/`), then `make docs` for a static build into `docs/.vitepress/dist` or `make docs-dev` for a live-reload server.
 

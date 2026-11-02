@@ -14,7 +14,7 @@ require = if ! command -v $(1) >/dev/null 2>&1; then \
 	echo "skip: $(1) not installed"; exit 0; fi
 
 .PHONY: help doctor check lint lint-strict lint-sh lint-docker lint-actions lint-compose check-sync \
-	test-hooks test-runner test-entrypoint test test-file docs-install docs docs-dev
+	test-hooks test-runner test-snomed test-entrypoint test test-file docs-install docs docs-dev
 
 ## help: List the targets
 help:
@@ -24,8 +24,8 @@ help:
 doctor:
 	@./scripts/doctor.sh
 
-## check: Everything that needs no terminology stack: lint, check-sync, hook/runner/entrypoint tests
-check: lint check-sync test-hooks test-runner test-entrypoint
+## check: Everything that needs no terminology stack: lint, check-sync, hook/runner/snomed/entrypoint tests
+check: lint check-sync test-hooks test-runner test-snomed test-entrypoint
 
 ## lint: ShellCheck, hadolint, actionlint and docker compose config (missing tools: skipped)
 lint: lint-sh lint-docker lint-actions lint-compose
@@ -67,6 +67,10 @@ test-hooks:
 ## test-runner: Synthetic tests for scripts/test/validate-test-resources.sh (fake curl, no network)
 test-runner:
 	@./tests/runner/run.sh
+
+## test-snomed: Synthetic tests for scripts/ci/download-snomed-ct.sh (fake curl, no network or secrets)
+test-snomed:
+	@./tests/snomed/run.sh
 
 ## test-entrypoint: Entrypoint tests in a container with a stub java (needs Docker, no terminology)
 test-entrypoint:

@@ -25,9 +25,10 @@ jobs:
       run: ./scripts/terminology/get-mii-terminology.sh install
 
     - name: Download SNOMED CT Release
-      uses: ./.github/actions/speicherwolke-download
+      uses: ./.github/actions/snomed-ct-download
       with:
         token: ${{ secrets.SCT_DOWNLOAD_TOKEN }}
+        umls-api-key: ${{ secrets.UMLS_API_KEY }}
         filename: SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip
 
     - name: Unzip SNOMED CT Release
