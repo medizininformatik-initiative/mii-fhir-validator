@@ -71,6 +71,32 @@ secret	2	{"tool_name":"Unknown","tool_input":{"command":"ls"}}
 secret	0	{"tool_name":"Grep","tool_input":{"pattern":"proxy"}}
 EOF
 
+# With a real secrets/ directory in the project root, the bare word counts as that path.
+root_with_dir=$(mktemp -d)
+mkdir "$root_with_dir/secrets"
+while IFS="$tab" read -r want cmd; do
+  jq -n --arg c "$cmd" '{tool_name: "Bash", tool_input: {command: $c}}' |
+    CLAUDE_PROJECT_DIR="$root_with_dir" "$hooks/block-secret-reads.sh" 2>/dev/null
+  check "secret with secrets/ present: $cmd" "$want" "$?"
+done <<EOF
+2	tar czf backup.tgz secrets
+2	cp -r secrets /tmp
+0	ls secrets
+EOF
+rm -rf "$root_with_dir"
+
+# One missing awk file of the library must block, not let every command through.
+for f in mask-quoted-ops.awk normalize.awk strip-heredocs.awk; do
+  partial=$(mktemp -d)
+  mkdir "$partial/lib"
+  cp "$hooks/block-secret-reads.sh" "$partial/"
+  cp "$hooks"/lib/* "$partial/lib/"
+  rm "$partial/lib/$f"
+  printf '{"tool_name":"Bash","tool_input":{"command":"ls"}}' | "$partial/block-secret-reads.sh" 2>/dev/null
+  check "secret: lib/$f missing" 2 "$?"
+  rm -rf "$partial"
+done
+
 # A missing jq or a missing hook library must block, not allow.
 for hook in git secret; do
   nojq=$(mktemp -d)

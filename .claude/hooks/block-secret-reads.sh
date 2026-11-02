@@ -5,13 +5,15 @@
 # Grep: optional path/glob), blocks the call.
 #
 # Blocked:
-#   - files: .env and every .env.* except exactly .env.default/.env.example; secrets/; private
-#     keys anywhere; certificates under certs/. Commands that only see names or metadata are
-#     allowed: ls, test, [, stat, echo, printf, find without -exec, git check-ignore/ls-files/
-#     status/log.
-#   - values: $TX_SERVER_PASSWORD / $SCT_DOWNLOAD_TOKEN / $UMLS_API_KEY expansions; environment dumps (env,
-#     printenv, export -p, set, docker inspect, docker exec … env, docker compose config
-#     without -q).
+#   - files: .env and every .env.* except exactly .env.default/.env.example; secrets/ (the bare
+#     word "secrets" only when that directory exists); private keys anywhere; certificates
+#     under certs/. Commands that only see names or metadata are allowed: ls, test, [, stat,
+#     echo, printf, find without -exec, git check-ignore/ls-files/status/log.
+#   - values: $TX_SERVER_PASSWORD / $SCT_DOWNLOAD_TOKEN / $UMLS_API_KEY expansions; environment
+#     dumps (env, printenv, export -p, set, docker [container] inspect, docker exec … env,
+#     docker compose config without -q). Registry queries such as docker buildx imagetools
+#     inspect or docker manifest inspect are allowed.
+# Separators inside quotes (grep 'a|b') do not split a command; see lib/mask-quoted-ops.awk.
 #   - searches that read gitignored files: recursive grep, rg -u/--no-ignore/--hidden and
 #     find -exec over the repository root or without a path. Searches limited to
 #     subdirectories or files are allowed; the Grep tool skips gitignored files unless a glob
@@ -53,6 +55,8 @@ case "$tool" in
 esac
 
 root="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+has_secrets=0
+[ -d "$root/secrets" ] && has_secrets=1
 
 # Checks for one normalized segment per line. mode=bash: field 1 is the command; mode=path:
 # the whole line is one path. full=0 is the quote-split pass: it runs only the command checks,
@@ -61,7 +65,8 @@ checks='
 function fname(p,  b) {
   sub(/\/+$/, "", p); b = p; sub(/.*\//, "", b)
   if (b ~ /^\.env(\..+)?$/ && b != ".env.default" && b != ".env.example") return "env file " p
-  if (p == "secrets" || p ~ /(^|\/)secrets(\/|$)/) return "secrets/ " p
+  # A bare word "secrets" (grep pattern, prose) is a path only when that directory exists.
+  if (p ~ /(^|\/)secrets\// || (p ~ /(^|\/)secrets$/ && (p != "secrets" || has_secrets))) return "secrets/ " p
   if (b ~ /\.(key|p12|pfx|jks)$/) return "private key " p
   if (p ~ /(^|\/)certs\/.+\.(pem|crt)$/) return "certificate " p
   return ""
@@ -99,7 +104,9 @@ function search_paths(start,  j, np, havepat, s) {  # grep/rg path operands afte
   if ((c == "export" || c == "declare" || c == "typeset") && (n == 1 || t[2] ~ /^-[a-z]*[px]/)) { print "environment dump (" c ")"; exit }
   if (c == "docker") {
     s = " " line " "
-    if (s ~ / inspect /) { print "docker inspect"; exit }
+    # Container inspection shows the runtime environment. `<object> inspect` for images,
+    # registries, networks, volumes and plugins does not; every other inspect stays blocked.
+    if (s ~ / inspect / && s !~ / (imagetools|manifest|image|network|volume|plugin) inspect /) { print "docker inspect"; exit }
     if (s ~ / exec / && s ~ / (env|printenv|set) /) { print "docker exec environment dump"; exit }
     if (s ~ / compose / && s ~ / config / && s !~ / (-q|--quiet) /) { print "docker compose config without -q"; exit }
   }
@@ -144,13 +151,15 @@ if [ "$tool" = Bash ]; then
     data=$(printf '%s\n' "$target" | strip_heredocs)
     reason=$(
       {
-        printf '%s\n' "$data" | remove_quotes | segments | normalize | awk -v mode=bash -v full=1 -v root="$root" "$checks"
-        printf '%s\n' "$data" | split_quotes | segments | normalize | awk -v mode=bash -v full=0 -v root="$root" "$checks"
+        printf '%s\n' "$data" | mask_quoted_ops | remove_quotes | segments | normalize |
+          awk -v mode=bash -v full=1 -v root="$root" -v has_secrets="$has_secrets" "$checks"
+        printf '%s\n' "$data" | split_quotes | segments | normalize |
+          awk -v mode=bash -v full=0 -v root="$root" -v has_secrets="$has_secrets" "$checks"
       } | head -n 1
     )
   fi
 else
-  reason=$(printf '%s\n' "$target" | awk -v mode=path -v root="$root" "$checks")
+  reason=$(printf '%s\n' "$target" | awk -v mode=path -v root="$root" -v has_secrets="$has_secrets" "$checks")
 fi
 
 if [ -n "$reason" ]; then
