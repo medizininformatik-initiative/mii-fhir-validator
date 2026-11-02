@@ -106,6 +106,18 @@ secret	2	Bash	docker container inspect fhir-validator
 secret	2	Bash	docker exec fhir-validator env
 secret	2	Bash	docker compose config
 secret	2	Bash	command docker compose config
+secret	2	Bash	docker --context x inspect fhir-validator
+secret	2	Bash	docker -H unix:///var/run/docker.sock container inspect fhir-validator
+secret	2	Bash	sh -c 'printenv | head'
+secret	2	Bash	bash -c 'echo hi; env'
+# --- secret: quoted separators do not hide a command
+secret	2	Bash	sh -c 'cat .env | head'
+secret	2	Bash	echo "$(cat .env | head)"
+secret	2	Bash	echo "`cat .env`"
+secret	2	Bash	grep -r 'a|b' .
+secret	2	Bash	grep -rn "x;y"
+secret	2	Bash	cat 'secrets/token'
+secret	2	Bash	cat ./secrets
 # --- secret: blocked searches that reach gitignored files
 secret	2	Bash	grep -r TX_SERVER .
 secret	2	Bash	grep -r TX_SERVER ./
@@ -164,6 +176,18 @@ secret	0	Bash	cat >> docs/dev.md <<'EOF'\n| `make lint` | `docker compose config
 secret	0	Bash	cat >> docs/dev.md <<'EOF'\nNever run $(cat .env) or printenv.\nEOF
 secret	0	Bash	cat >> docs/dev.md <<EOF\nNever run printenv or cat .env. Built on $(date +%F).\nEOF
 secret	0	Bash	make lint
+# --- secret: former false positives
+secret	0	Bash	grep -rn -i 'a\|b:' docs README.md
+secret	0	Bash	grep -rn "proxy|tx" docs
+secret	0	Bash	grep -rn 'x; y (z)' docs
+secret	0	Bash	git log --grep='fix(docker)|chore'
+secret	0	Bash	docker buildx imagetools inspect samply/blaze:1.12.1
+secret	0	Bash	docker manifest inspect samply/blaze:1.12.1
+secret	0	Bash	docker image inspect samply/blaze:1.12.1
+secret	0	Bash	grep -n secrets docs/dev.md
+secret	0	Bash	perl -pi -e 's/a/(no network or secrets)/' Makefile
+secret	0	Bash	echo 'no network or secrets'
+secret	0	Bash	gh secret list
 secret	0	Read	/Users/someone/git/mii-fhir-validator/.env.default
 secret	0	Read	/Users/someone/git/mii-fhir-validator/docs/configuration.md
 secret	0	Write	/Users/someone/git/mii-fhir-validator/.env.example
