@@ -35,23 +35,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Test incomplete forward proxy configuration
-        run: |
-          if docker run --rm \
-            -e FHIR_CACHE_SEED=false \
-            -e FORWARD_PROXY_HOST=proxy.invalid \
-            mii-fhir-validator:test; then
-            echo "ERROR: Validator accepted a forward proxy host without a port"
-            exit 1
-          fi
+      - name: Test the entrypoint baked into the image
+        # Asserts exit status and error message per misconfiguration, plus argument and cache handling.
+        run: ENTRYPOINT_TEST_IMAGE=mii-fhir-validator:test make test-entrypoint
 
       - name: Download MII terminology packages
         run: ./scripts/terminology/get-mii-terminology.sh install
 
       - name: Download SNOMED CT Release
-        uses: ./.github/actions/speicherwolke-download
+        uses: ./.github/actions/snomed-ct-download
         with:
           token: ${{ secrets.SCT_DOWNLOAD_TOKEN }}
+          umls-api-key: ${{ secrets.UMLS_API_KEY }}
           filename: SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip
 
       - name: Unzip SNOMED CT Release
