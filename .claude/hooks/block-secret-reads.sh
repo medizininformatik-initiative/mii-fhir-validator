@@ -104,9 +104,9 @@ function search_paths(start,  j, np, havepat, s) {  # grep/rg path operands afte
   if ((c == "export" || c == "declare" || c == "typeset") && (n == 1 || t[2] ~ /^-[a-z]*[px]/)) { print "environment dump (" c ")"; exit }
   if (c == "docker") {
     s = " " line " "
-    # Container inspection shows the runtime environment. Inspecting images, registries and
-    # other objects does not; every other inspect stays blocked.
-    if (s ~ / inspect / && s !~ / (buildx|manifest|image|network|volume|plugin) /) { print "docker inspect"; exit }
+    # Container inspection shows the runtime environment. `<object> inspect` for images,
+    # registries, networks, volumes and plugins does not; every other inspect stays blocked.
+    if (s ~ / inspect / && s !~ / (imagetools|manifest|image|network|volume|plugin) inspect /) { print "docker inspect"; exit }
     if (s ~ / exec / && s ~ / (env|printenv|set) /) { print "docker exec environment dump"; exit }
     if (s ~ / compose / && s ~ / config / && s !~ / (-q|--quiet) /) { print "docker compose config without -q"; exit }
   }

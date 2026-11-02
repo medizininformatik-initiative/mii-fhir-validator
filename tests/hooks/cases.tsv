@@ -107,6 +107,9 @@ secret	2	Bash	docker exec fhir-validator env
 secret	2	Bash	docker compose config
 secret	2	Bash	command docker compose config
 secret	2	Bash	docker --context x inspect fhir-validator
+secret	2	Bash	docker inspect fhir-validator image
+secret	2	Bash	docker inspect --type container network
+secret	2	Bash	docker image ls && docker inspect fhir-validator
 secret	2	Bash	docker -H unix:///var/run/docker.sock container inspect fhir-validator
 secret	2	Bash	sh -c 'printenv | head'
 secret	2	Bash	bash -c 'echo hi; env'
@@ -184,6 +187,7 @@ secret	0	Bash	git log --grep='fix(docker)|chore'
 secret	0	Bash	docker buildx imagetools inspect samply/blaze:1.12.1
 secret	0	Bash	docker manifest inspect samply/blaze:1.12.1
 secret	0	Bash	docker image inspect samply/blaze:1.12.1
+secret	0	Bash	docker --context x network inspect bridge
 secret	0	Bash	grep -n secrets docs/dev.md
 secret	0	Bash	perl -pi -e 's/a/(no network or secrets)/' Makefile
 secret	0	Bash	echo 'no network or secrets'
