@@ -85,6 +85,8 @@ secret	2	Bash	cat > leak.txt <<EOF\n`printenv`\nEOF
 secret	2	Bash	cat > leak.txt <<"EOF"\nok\nEOF\ncat .env
 # --- secret: blocked values and environment dumps
 secret	2	Bash	echo $SCT_DOWNLOAD_TOKEN
+secret	2	Bash	echo $UMLS_API_KEY
+secret	2	Bash	curl "https://uts-ws.nlm.nih.gov/download?apiKey=${UMLS_API_KEY}"
 secret	2	Bash	echo "${TX_SERVER_PASSWORD}"
 secret	2	Bash	printenv TX_SERVER_PASSWORD
 secret	2	Bash	printenv

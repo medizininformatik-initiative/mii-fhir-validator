@@ -9,7 +9,7 @@
 #     keys anywhere; certificates under certs/. Commands that only see names or metadata are
 #     allowed: ls, test, [, stat, echo, printf, find without -exec, git check-ignore/ls-files/
 #     status/log.
-#   - values: $TX_SERVER_PASSWORD / $SCT_DOWNLOAD_TOKEN expansions; environment dumps (env,
+#   - values: $TX_SERVER_PASSWORD / $SCT_DOWNLOAD_TOKEN / $UMLS_API_KEY expansions; environment dumps (env,
 #     printenv, export -p, set, docker inspect, docker exec … env, docker compose config
 #     without -q).
 #   - searches that read gitignored files: recursive grep, rg -u/--no-ignore/--hidden and
@@ -138,7 +138,7 @@ function search_paths(start,  j, np, havepat, s) {  # grep/rg path operands afte
 }'
 
 if [ "$tool" = Bash ]; then
-  if printf '%s\n' "$target" | grep -Eq '\$\{?(TX_SERVER_PASSWORD|SCT_DOWNLOAD_TOKEN)'; then
+  if printf '%s\n' "$target" | grep -Eq '\$\{?(TX_SERVER_PASSWORD|SCT_DOWNLOAD_TOKEN|UMLS_API_KEY)'; then
     reason="secret variable expansion"
   else
     data=$(printf '%s\n' "$target" | strip_heredocs)

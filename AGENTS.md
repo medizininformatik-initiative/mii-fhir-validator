@@ -14,8 +14,9 @@ docker-compose.yml    profiles: blaze (validator + blaze), ontoserver (validator
 .env.default          documented defaults (tracked); .env is the local copy (gitignored, secret)
 scripts/terminology/  MII terminology BOM (package.json) + download/upload scripts for Blaze
 scripts/test/         validate-test-resources.sh: integration check, used by CI and `make test`
+scripts/ci/           download-snomed-ct.sh: SNOMED CT zip from speicherwolke, NLM as fallback
 scripts/              check-sync.sh, doctor.sh
-tests/                hooks/, runner/, entrypoint/: fast tests without a terminology stack
+tests/                hooks/, runner/, snomed/, entrypoint/: fast tests without a terminology stack
 nginx/                mTLS proxy to ontoserver.mii-termserv.de; certs/ holds client keys (secret)
 docs/                 VitePress site; public/openapi.yaml documents the validator HTTP API
 .github/              workflows, test-resources/*.json (validated in CI), docker-compose.ci.yml
@@ -26,7 +27,8 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
 
 - `make doctor` — which prerequisites are present for each layer below.
 - `make check` — everything that needs no terminology stack (seconds, plus Docker for the
-  entrypoint tests): `lint`, `check-sync`, `test-hooks`, `test-runner`, `test-entrypoint`.
+  entrypoint tests): `lint`, `check-sync`, `test-hooks`, `test-runner`, `test-snomed`,
+  `test-entrypoint`.
   CI runs `make check STRICT=1` (`checks.yml`); without `STRICT=1` missing linters are skipped.
 - `make lint` — ShellCheck (all non-ignored `*.sh`), hadolint, actionlint, `docker compose config`
   for both profiles and the CI override. Single linter: `make lint-sh|lint-docker|lint-actions|lint-compose`.
@@ -97,7 +99,7 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
 ## Boundaries
 
 - Secrets: never read or print `.env`/`.env.*` (except `.env.default`), `secrets/`, keys and
-  certificates in `nginx/certs/`, or the values of `TX_SERVER_PASSWORD`/`SCT_DOWNLOAD_TOKEN`.
+  certificates in `nginx/certs/`, or the values of `TX_SERVER_PASSWORD`/`SCT_DOWNLOAD_TOKEN`/`UMLS_API_KEY`.
   No environment dumps (`env`, `printenv`, `docker inspect`, `docker compose config` without `-q`).
   Names and metadata are fine (`git check-ignore`, `ls`, `test -f`); limit recursive searches
   to subdirectories (`grep -rn x docs`), not the repository root.
