@@ -1,0 +1,6 @@
+failure-threshold: warning
+ignored:
+  # Pinning distro package versions breaks rebuilds once the mirrors drop the old version.
+  # validator/Dockerfile installs only wget (apt); scripts/terminology/Dockerfile bash, jq, curl (apk).
+  - DL3008
+  - DL3018

@@ -1,0 +1,4 @@
+# Build context of nginx/Dockerfile. Allowlist: client certificates in certs/ are mounted at
+# runtime and must never be baked into the image.
+*
+!nginx.conf

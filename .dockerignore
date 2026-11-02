@@ -1,0 +1,8 @@
+# Build context of validator/Dockerfile (context: repository root). Allowlist: only the files
+# the Dockerfile COPYs are sent, so .env, certificates, SNOMED CT releases, IG packages and
+# node_modules never reach the build. Add a line here when the Dockerfile COPYs a new file.
+*
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!validator/advisor.json
+!validator/docker-entrypoint.sh

@@ -1,0 +1,200 @@
+# Regression cases for .claude/hooks. Columns (tab-separated): hook, expected exit, tool, input.
+# hook: git = block-git-writes.sh, secret = block-secret-reads.sh
+# tool: Bash (input = command), Read/Edit/Write (input = file_path), Grep (input = path),
+#       GrepGlob (input = Grep glob). A literal \n in the input becomes a newline, \t a tab.
+# Absolute paths use the project root /Users/someone/git/mii-fhir-validator (see run.sh).
+# Inputs are only passed to the hooks as JSON text; tests/hooks/run.sh never executes them.
+
+# --- git: blocked
+git	2	Bash	git commit -m x
+git	2	Bash	git -C . commit -m x
+git	2	Bash	git -C "/a b" commit -m x
+git	2	Bash	sh -c "git push"
+git	2	Bash	bash -c 'git -C . commit'
+git	2	Bash	echo $(git push origin main)
+git	2	Bash	git -c a=b rebase main
+git	2	Bash	cd docs && git tag v1
+git	2	Bash	/usr/bin/git reset --hard
+git	2	Bash	\git push
+git	2	Bash	GIT_DIR=x git merge foo
+git	2	Bash	env -i git commit -m test
+git	2	Bash	/usr/bin/env git push
+git	2	Bash	env -u HOME -- git push
+git	2	Bash	command git commit -m x
+git	2	Bash	timeout 10 git push
+git	2	Bash	time -p git commit -m x
+git	2	Bash	if true; then git commit -m x; fi
+git	2	Bash	for f in a b; do git add $f; done
+git	2	Bash	git add example.txt
+git	2	Bash	git stage .
+git	2	Bash	git stash
+git	2	Bash	git rm --cached file
+git	2	Bash	git cherry-pick abc123
+git	2	Bash	git pull --rebase
+git	2	Bash	eval git commit -m x
+git	2	Bash	sh <<EOF\ngit push\nEOF
+git	2	Bash	cat <<EOF | sh\ngit push\nEOF
+git	2	Bash	cat > notes.md <<EOF\nresult: $(git push origin main)\nEOF
+git	2	Bash	cat > notes.md <<EOF\nresult: `git commit -m x`\nEOF
+git	2	Bash	tee notes.md <<-EOF\n\t$(echo $(git push))\n\tEOF
+git	2	Bash	cat > notes.md <<-EOF\n\ttext\n\tEOF\ngit push
+git	2	Bash	gh pr create --fill
+git	2	Bash	gh pr merge 3
+git	2	Bash	gh release delete v1
+# --- git: allowed
+git	0	Bash	git status
+git	0	Bash	git diff
+git	0	Bash	git diff --cached
+git	0	Bash	git log --grep=merge
+git	0	Bash	git log --oneline | grep commit
+git	0	Bash	ls pre-commit
+git	0	Bash	git show HEAD -- commit.txt
+git	0	Bash	git describe --tags --abbrev=0
+git	0	Bash	git check-ignore -v .claude/settings.local.json
+git	0	Bash	git ls-files --others --exclude-standard
+git	0	Bash	echo add commit push
+git	0	Bash	cat >> docs/dev.md <<'EOF'\nAfter review, run:\ngit push origin main\nEOF
+git	0	Bash	cat >> docs/dev.md <<'EOF'\nresult: $(git push origin main)\nEOF
+git	0	Bash	cat >> docs/dev.md <<\EOF\nresult: $(git push origin main)\nEOF
+git	0	Bash	cat >> docs/dev.md <<EOF\nAfter review, run git push. Built on $(date +%F).\nEOF
+git	0	Bash	cat >> docs/dev.md <<-EOF\n\tgit push is documented here\n\tEOF\necho done
+git	0	Bash	gh pr view 3
+git	0	Bash	gh pr diff 3
+git	0	Bash	gh pr checks 3
+
+# --- secret: blocked files
+secret	2	Bash	cat .env
+secret	2	Bash	cat ./.env
+secret	2	Bash	cat ".env"
+secret	2	Bash	cat /Users/someone/git/mii-fhir-validator/.env
+secret	2	Bash	grep TX .env.local
+secret	2	Bash	cat .env.default.local
+secret	2	Bash	cat .env.production
+secret	2	Bash	source .env
+secret	2	Bash	docker compose --env-file=.env config -q
+secret	2	Bash	sh -c "cat .env"
+secret	2	Bash	test -f .env && cat .env
+secret	2	Bash	git diff --no-index .env .env.default
+secret	2	Bash	cat secrets/token
+secret	2	Bash	cat nginx/certs/client-key.key
+secret	2	Bash	openssl x509 -in nginx/certs/client-cert.pem -noout
+secret	2	Bash	sh <<EOF\ncat .env\nEOF
+secret	2	Bash	cat > leak.txt <<EOF\n$TX_SERVER_PASSWORD\nEOF
+secret	2	Bash	cat > leak.txt <<EOF\n$(cat .env)\nEOF
+secret	2	Bash	cat > leak.txt <<EOF\n`printenv`\nEOF
+secret	2	Bash	cat > leak.txt <<"EOF"\nok\nEOF\ncat .env
+# --- secret: blocked values and environment dumps
+secret	2	Bash	echo $SCT_DOWNLOAD_TOKEN
+secret	2	Bash	echo $UMLS_API_KEY
+secret	2	Bash	curl "https://uts-ws.nlm.nih.gov/download?apiKey=${UMLS_API_KEY}"
+secret	2	Bash	echo "${TX_SERVER_PASSWORD}"
+secret	2	Bash	printenv TX_SERVER_PASSWORD
+secret	2	Bash	printenv
+secret	2	Bash	sudo printenv
+secret	2	Bash	env
+secret	2	Bash	command env
+secret	2	Bash	/usr/bin/env
+secret	2	Bash	env -i
+secret	2	Bash	env | grep TX
+secret	2	Bash	bash -c "env"
+secret	2	Bash	export -p
+secret	2	Bash	declare -x
+secret	2	Bash	set
+secret	2	Bash	docker inspect fhir-validator
+secret	2	Bash	env -i docker inspect fhir-validator
+secret	2	Bash	docker container inspect fhir-validator
+secret	2	Bash	docker exec fhir-validator env
+secret	2	Bash	docker compose config
+secret	2	Bash	command docker compose config
+secret	2	Bash	docker --context x inspect fhir-validator
+secret	2	Bash	docker inspect fhir-validator image
+secret	2	Bash	docker inspect --type container network
+secret	2	Bash	docker image ls && docker inspect fhir-validator
+secret	2	Bash	docker -H unix:///var/run/docker.sock container inspect fhir-validator
+secret	2	Bash	sh -c 'printenv | head'
+secret	2	Bash	bash -c 'echo hi; env'
+# --- secret: quoted separators do not hide a command
+secret	2	Bash	sh -c 'cat .env | head'
+secret	2	Bash	echo "$(cat .env | head)"
+secret	2	Bash	echo "`cat .env`"
+secret	2	Bash	grep -r 'a|b' .
+secret	2	Bash	grep -rn "x;y"
+secret	2	Bash	cat 'secrets/token'
+secret	2	Bash	cat ./secrets
+# --- secret: blocked searches that reach gitignored files
+secret	2	Bash	grep -r TX_SERVER .
+secret	2	Bash	grep -r TX_SERVER ./
+secret	2	Bash	grep -Rn proxy
+secret	2	Bash	grep --recursive proxy ..
+secret	2	Bash	grep -rn proxy /Users/someone/git/mii-fhir-validator
+secret	2	Bash	grep -rn proxy /Users/someone/git
+secret	2	Bash	grep -rn proxy docs nginx/certs
+secret	2	Bash	grep -r -e proxy .
+secret	2	Bash	command grep -r proxy .
+secret	2	Bash	rg -uu TX_SERVER
+secret	2	Bash	rg --no-ignore TX_SERVER .
+secret	2	Bash	rg --hidden TX_SERVER
+secret	2	Bash	find . -type f -exec grep -l proxy {} +
+secret	2	Bash	find -exec cat {} ;
+# --- secret: blocked tool inputs
+secret	2	Read	/Users/someone/git/mii-fhir-validator/.env
+secret	2	Read	.env.local
+secret	2	Read	.env.default.local
+secret	2	Read	/Users/someone/git/mii-fhir-validator/nginx/certs/client-key.key
+secret	2	Edit	/Users/someone/git/mii-fhir-validator/.env
+secret	2	Write	secrets/new.txt
+secret	2	Grep	/Users/someone/git/mii-fhir-validator/secrets
+secret	2	GrepGlob	.env*
+secret	2	GrepGlob	*
+secret	2	GrepGlob	**/*
+# --- secret: allowed (names, metadata, docs, limited searches)
+secret	0	Bash	cat .env.default
+secret	0	Bash	cat .env.example
+secret	0	Bash	cat .envrc.sample
+secret	0	Bash	git check-ignore .env.local
+secret	0	Bash	git check-ignore -v -n .env .env.local .env.default.local secrets/x
+secret	0	Bash	git ls-files -- .env.default
+secret	0	Bash	ls -la .env*
+secret	0	Bash	test -f .env && echo present
+secret	0	Bash	[ -f .env ] || echo missing
+secret	2	Bash	cp .env.default .env.new
+secret	0	Bash	find . -name '.env*'
+secret	0	Bash	ls nginx/certs/README.md
+secret	0	Bash	cat docs/configuration.md
+secret	0	Bash	grep -n TX_SERVER_PASSWORD docs/configuration.md
+secret	0	Bash	echo "set TX_SERVER_PASSWORD in your .env"
+secret	0	Bash	docker compose --env-file .env.default config -q
+secret	0	Bash	docker compose ps
+secret	0	Bash	env -i git status
+secret	0	Bash	env FOO=1 make lint
+secret	0	Bash	grep -n proxy validator/docker-entrypoint.sh
+secret	0	Bash	grep -rn proxy docs
+secret	0	Bash	grep -rn '0.0.1-alpha.9' docker-compose.yml docs/*.md README.md
+secret	0	Bash	grep -r --include=*.md proxy docs scripts
+secret	0	Bash	grep -rn -e proxy -e tx docs
+secret	0	Bash	rg TX_SERVER
+secret	0	Bash	rg -uu TX_SERVER docs
+secret	0	Bash	find docs -name '*.md' -exec grep -l proxy {} +
+secret	0	Bash	cat >> docs/dev.md <<'EOF'\n| `make lint` | `docker compose config` for both profiles |\nNever run printenv or cat .env.\nEOF
+secret	0	Bash	cat >> docs/dev.md <<'EOF'\nNever run $(cat .env) or printenv.\nEOF
+secret	0	Bash	cat >> docs/dev.md <<EOF\nNever run printenv or cat .env. Built on $(date +%F).\nEOF
+secret	0	Bash	make lint
+# --- secret: former false positives
+secret	0	Bash	grep -rn -i 'a\|b:' docs README.md
+secret	0	Bash	grep -rn "proxy|tx" docs
+secret	0	Bash	grep -rn 'x; y (z)' docs
+secret	0	Bash	git log --grep='fix(docker)|chore'
+secret	0	Bash	docker buildx imagetools inspect samply/blaze:1.12.1
+secret	0	Bash	docker manifest inspect samply/blaze:1.12.1
+secret	0	Bash	docker image inspect samply/blaze:1.12.1
+secret	0	Bash	docker --context x network inspect bridge
+secret	0	Bash	grep -n secrets docs/dev.md
+secret	0	Bash	perl -pi -e 's/a/(no network or secrets)/' Makefile
+secret	0	Bash	echo 'no network or secrets'
+secret	0	Bash	gh secret list
+secret	0	Read	/Users/someone/git/mii-fhir-validator/.env.default
+secret	0	Read	/Users/someone/git/mii-fhir-validator/docs/configuration.md
+secret	0	Write	/Users/someone/git/mii-fhir-validator/.env.example
+secret	0	Grep	/Users/someone/git/mii-fhir-validator
+secret	0	GrepGlob	*.md
+secret	0	GrepGlob	**/*.sh
