@@ -104,6 +104,17 @@ Space-separated list of `-ig` parameters specifying which Implementation Guides 
 
 See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
+## Health Check
+
+Images built from this repository after `0.0.1-alpha.9` have a Docker `HEALTHCHECK` that requests `GET http://127.0.0.1:8080/openapi.json` inside the container (`wget --no-proxy`, every 10 s, 5 s timeout). `docker compose ps` shows the validator as `healthy`, and `docker compose up --wait` waits for it.
+
+- **What `healthy` means:** the validator has loaded all IGs and answers HTTP requests. It opens port 8080 only after loading, and `/openapi.json` returns static content without running a validation.
+- **What it does not mean:** that the terminology has been uploaded to Blaze or that terminology validation works. Run `./scripts/terminology/upload-terminology.sh` and the validation tests as before.
+- **Startup:** failures during the first 300 s (`start-period`) don't count. A successful check marks the container `healthy` right away, so the start period doesn't add any waiting time.
+- **Long validations:** the validator handles one HTTP request at a time, so a running validation blocks the health check until it is done. The check reports `unhealthy` only after 20 failed attempts in a row. Docker starts the next attempt 10 s after the previous one ends, and a blocked attempt takes 5 s, so that's about 5 minutes. A validation that takes longer still marks the container `unhealthy` until it finishes. Docker itself never restarts an unhealthy container.
+
+Kubernetes ignores the Docker `HEALTHCHECK`; see the probe example in the README's Kubernetes section.
+
 ## Validator Advisor File (`advisor.json`)
 
 The validator is started with `-advisor-file /app/validator/advisor.json`.

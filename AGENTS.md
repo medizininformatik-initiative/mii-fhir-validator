@@ -38,8 +38,10 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
 - Integration (needs SNOMED CT, terminology in Blaze, several GB RAM):
   - setup once: extract SNOMED CT into `snomed-ct-release/`,
     `./scripts/terminology/get-mii-terminology.sh install`, `cp .env.default .env` (user does this);
-  - `docker compose up -d`, ready when `docker compose logs validator` shows
-    `FHIR Validator HTTP Service started`; then `./scripts/terminology/upload-terminology.sh`;
+  - `docker compose up -d`, ready when `docker compose ps` shows the validator `healthy`
+    (image HEALTHCHECK, images after 0.0.1-alpha.9) or `docker compose logs validator` shows
+    `FHIR Validator HTTP Service started`; then `./scripts/terminology/upload-terminology.sh`
+    (healthy does not mean terminology is loaded);
   - `make test` (all `.github/test-resources/*.json`) or `make test-file FILE=<resource.json>`.
 - Build the image: `docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --build --wait`.
 - Docs: `make docs-install` once (`npm ci`), then `make docs` (static build into

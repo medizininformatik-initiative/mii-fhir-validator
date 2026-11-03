@@ -143,7 +143,7 @@ To build the documentation, run `make docs-install` once (runs `npm ci` in `docs
 
 - **`skip: <tool> not installed` in `make lint`:** the linter is missing locally and was skipped. CI does not skip it. Install it, or run `make lint STRICT=1` to see what CI sees.
 - **`make test-entrypoint` fails with "the Docker daemon is not running":** start Docker Desktop (or `dockerd`). The first run pulls `ubuntu:24.04`.
-- **`make test` reports "no response" or `curl exit 7`:** the validator is not running or not ready yet. Check `docker compose ps` and wait for `FHIR Validator HTTP Service started` in `docker compose logs validator`.
+- **`make test` reports "no response" or `curl exit 7`:** the validator is not running or not ready yet. Check `docker compose ps`: with an image that has the [health check](configuration.md#health-check), wait for the validator to show `healthy`; with older images, wait for `FHIR Validator HTTP Service started` in `docker compose logs validator`. `docker compose up -d --wait` waits for this by itself.
 - **`make test` reports `curl exit 28`:** the request timed out. The first validations after a start are slow while the terminology cache fills; raise `VALIDATOR_TIMEOUT` (seconds, default 300).
 - **Validation fails with terminology errors (unknown code system, value set not found):** the terminology was not uploaded, or the BOM changed. Run `./scripts/terminology/get-mii-terminology.sh update` and `./scripts/terminology/upload-terminology.sh`.
 - **`make check-sync` fails after an IG or release bump:** update every file it names. The `release` skill in `.claude/skills/release` lists the steps.

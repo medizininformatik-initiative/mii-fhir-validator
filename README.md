@@ -245,6 +245,24 @@ volumeMounts:
     mountPath: /var/lib/fhir/.fhir/packages  # Must be writable
 ```
 
+### Example: Startup and Readiness Probes
+
+Kubernetes ignores the image's Docker `HEALTHCHECK`, so you need to define probes yourself. `GET /openapi.json` answers once all IGs are loaded and doesn't run a validation (see [Health Check](docs/configuration.md#health-check)):
+
+```yaml
+startupProbe:
+  httpGet: { path: /openapi.json, port: 8080 }
+  periodSeconds: 10
+  failureThreshold: 60   # up to 10 min to load the IGs
+readinessProbe:
+  httpGet: { path: /openapi.json, port: 8080 }
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30   # 30 x 10 s = ~5 min: a long validation blocks the probe
+```
+
+The validator handles one request at a time, so the probe fails while a long validation is running. A validation that takes longer than about 5 minutes still makes the pod unready until it finishes. Kubernetes starts probes at fixed intervals, so the probe timeout doesn't add to the period as it does with Docker. Don't reuse this endpoint as a `livenessProbe` with tight limits: Kubernetes would restart a pod that is busy, not broken. "Ready" also doesn't mean that the terminology server is set up.
+
 ## Alternative: MII Ontoserver Setup
 
 > [!IMPORTANT]

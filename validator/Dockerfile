@@ -54,6 +54,11 @@ RUN mkdir -p /igs
 # Expose validator port
 EXPOSE 8080
 
+# Healthy = IGs loaded and HTTP served (the server opens port 8080 only after loading).
+# A long validation blocks the probe (single request thread); retries=20 allows ~5 min.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=300s --retries=20 \
+  CMD ["wget", "--no-proxy", "--tries=1", "--timeout=4", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/openapi.json"]
+
 # Default IG parameters - can be overridden via IG_PARAMS environment variable
 ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 
