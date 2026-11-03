@@ -126,7 +126,7 @@ Alternatively, edit `docker-compose.yml` environment variables directly.
 
 ### Validate a FHIR Resource
 
-The validator runs as an HTTP server on port 8080. To validate a resource:
+The validator runs as an HTTP server on port 8080. It exposes only `POST /validateResource`, `GET /health` and `GET /openapi.json`; the other endpoints of the FHIR Validator CLI server (e.g. `/stop`, `/loadIG`) are blocked (see [Exposed Endpoints](docs/configuration.md#exposed-endpoints)). To validate a resource:
 
 **Endpoint:**
 ```
@@ -197,7 +197,7 @@ The entrypoint supports three modes based on `FHIR_CACHE_SEED` and mount writabi
 For Kubernetes with `readOnlyRootFilesystem: true`:
 - Set `FHIR_HOME` to a writable mount path (e.g., `/var/lib/fhir`) if you need runtime package downloads
 - Mount a writable volume (emptyDir or PVC) at `$FHIR_HOME/.fhir/packages` for the package cache
-- Mount a writable volume at `/tmp` for terminology cache and `fhir-settings.json`
+- Mount a writable volume at `/tmp` for the terminology cache, `fhir-settings.json` and the internal nginx (required: the container exits with an error if `/tmp` isn't writable)
 - The terminology cache (`TX_CACHE_DIR`, default `/tmp/tx-cache`) must be writable
 - Set `TX_LOG=""` to disable terminology logging (reduces write surface)
 
@@ -247,15 +247,15 @@ volumeMounts:
 
 ### Example: Startup and Readiness Probes
 
-Kubernetes ignores the image's Docker `HEALTHCHECK`, so you need to define probes yourself. `GET /openapi.json` answers once all IGs are loaded and doesn't run a validation (see [Health Check](docs/configuration.md#health-check)):
+Kubernetes ignores the image's Docker `HEALTHCHECK`, so you need to define probes yourself. `GET /health` answers `200` once all IGs are loaded and the validator responds; it doesn't run a validation (see [Health Check](docs/configuration.md#health-check)):
 
 ```yaml
 startupProbe:
-  httpGet: { path: /openapi.json, port: 8080 }
+  httpGet: { path: /health, port: 8080 }
   periodSeconds: 10
   failureThreshold: 60   # up to 10 min to load the IGs
 readinessProbe:
-  httpGet: { path: /openapi.json, port: 8080 }
+  httpGet: { path: /health, port: 8080 }
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 30   # 30 x 10 s = ~5 min: a long validation blocks the probe

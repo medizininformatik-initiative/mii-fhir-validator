@@ -3,6 +3,11 @@ ARG VALIDATOR_VERSION=6.9.11
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
+# Our API spec as JSON, served by nginx at GET /openapi.json instead of the upstream one.
+FROM mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e AS openapi
+COPY docs/public/openapi.yaml /tmp/openapi.yaml
+RUN yq -o=json '.' /tmp/openapi.yaml > /tmp/openapi.json
+
 FROM eclipse-temurin:17-jre
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
@@ -11,8 +16,8 @@ LABEL org.opencontainers.image.url="https://medizininformatik-initiative.github.
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.source="https://github.com/medizininformatik-initiative/mii-fhir-validator"
 
-# Install required tools
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+# Install required tools: wget (healthcheck), nginx (default-deny front on port 8080, #21)
+RUN apt-get update && apt-get install -y --no-install-recommends wget nginx && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
 WORKDIR /app
@@ -51,19 +56,25 @@ RUN chmod -R a+rX /app/fhir-cache
 # Create directory for IGs
 RUN mkdir -p /igs
 
-# Expose validator port
+# nginx (port 8080) is the only exposed listener; the validator listens on 127.0.0.1:8081.
 EXPOSE 8080
 
-# Healthy = IGs loaded and HTTP served (the server opens port 8080 only after loading).
-# A long validation blocks the probe (single request thread); retries=20 allows ~5 min.
+# Healthy = nginx up and the validator answering (it opens its port only after loading the
+# IGs); /health asks the validator on every probe. A long validation blocks the probe (single
+# request thread): a blocked probe fails after ~3 s (nginx), so retries=20 allows
+# 20 x (10 s + ~3 s) = ~260 s before Docker reports unhealthy.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=300s --retries=20 \
-  CMD ["wget", "--no-proxy", "--tries=1", "--timeout=4", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/openapi.json"]
+  CMD ["wget", "--no-proxy", "--tries=1", "--timeout=4", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
 
 # Default IG parameters - can be overridden via IG_PARAMS environment variable
 ENV DEFAULT_IG_PARAMS="${IG_LIST}"
 
 # Advisor configuration for suppressing specific validation messages
 COPY validator/advisor.json /app/validator/advisor.json
+
+# nginx front: route allowlist, static /health body and our OpenAPI spec
+COPY validator/nginx.conf validator/health.json /app/validator/
+COPY --from=openapi /tmp/openapi.json /app/validator/openapi.json
 
 # Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
 COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh

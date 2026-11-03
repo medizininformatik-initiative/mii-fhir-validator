@@ -58,16 +58,29 @@ jobs:
       - name: Upload MII terminology to Blaze
         run: ./scripts/terminology/upload-terminology.sh
       
+      - name: Test the nginx configuration in the image
+        # The entrypoint tests use a stub nginx; this checks the real binary and config,
+        # as root and as an arbitrary non-root user with a read-only root filesystem.
+        # /tmp/nginx is created by the entrypoint before it runs the same test.
+        run: |
+          docker run --rm --entrypoint sh mii-fhir-validator:test \
+            -c 'mkdir -p /tmp/nginx && nginx -t -e stderr -c /app/validator/nginx.conf'
+          docker run --rm --read-only --tmpfs /tmp --user 10001 --entrypoint sh mii-fhir-validator:test \
+            -c 'mkdir -p /tmp/nginx && nginx -t -e stderr -c /app/validator/nginx.conf'
+
       - name: Test validator image with Blaze
         run: |
           # Use an unreachable forward proxy and bypass it for the internal Blaze service.
           # Successful validation confirms that the proxy properties are applied without
           # routing internal terminology traffic through the proxy.
+          # Hardened like a Kubernetes pod (read-only root, writable /tmp only, arbitrary UID)
+          # to check that nginx and the validator need nothing else; compose CI runs as root.
           # The probe command comes from the image HEALTHCHECK; the short interval/retries here
           # only speed up the failure/recovery test below (compose CI uses the image timings).
           docker run -d --name test-validator \
             --network mii-fhir-validator_fhir-network \
             -p 8080:8080 \
+            --read-only --tmpfs /tmp --user 10001 \
             --health-interval=3s --health-timeout=5s --health-retries=3 \
             -e TX_SERVER=http://blaze-terminology:8080/fhir \
             -e JAVA_OPTS=-Xmx4g \
@@ -92,6 +105,28 @@ jobs:
             done
             echo "ERROR: test-validator did not become $want within $2 s"; docker logs test-validator; return 1
           }
+          # expect <status> <curl args...>: fail with the logs unless the HTTP status matches.
+          expect() {
+            local want="$1" got; shift
+            got=$(curl -s -o /tmp/expect-body -w '%{http_code}' --max-time 300 "$@") || true
+            if [ "$got" != "$want" ]; then
+              echo "ERROR: expected $want, got $got for: $*"; cat /tmp/expect-body 2>/dev/null || true
+              docker logs test-validator; exit 1
+            fi
+          }
+          V=http://localhost:8080
+
+          # nginx answers within seconds, the validator only after loading the IGs: /health must
+          # not report ready in between.
+          for _ in $(seq 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$V/health") || true
+            [ "$code" != "000" ] && break
+            sleep 1
+          done
+          if [ "$code" = "200" ] || [ "$code" = "000" ]; then
+            echo "ERROR: /health returned $code before the validator was ready"; docker logs test-validator; exit 1
+          fi
+          echo "/health before readiness: $code"
 
           wait_health healthy 600
 
@@ -102,20 +137,20 @@ jobs:
           fi
 
           # Time the largest test resource on a cold terminology cache. The validator serves one
-          # request at a time, so this blocks the health probe; the image allows ~5 min of
+          # request at a time, so this blocks the health probe; the image allows ~260 s of
           # failed probes (retries=20) before it reports unhealthy.
           BUNDLE=.github/test-resources/Bundle-mii-exa-base-test-data-bundle-1.json
           # --fail-with-body rejects HTTP errors, so a fast 4xx/5xx is never recorded as a timing.
-          SECS=$(curl -sS --fail-with-body -o /tmp/bundle-oo.json -w '%{time_total}' --max-time 300 \
+          SECS=$(curl -sS --fail-with-body -o /tmp/bundle-oo.json -w '%{time_total}' --max-time 260 \
             -X POST http://localhost:8080/validateResource \
             -H "Content-Type: application/fhir+json" -H "Accept: application/fhir+json" -d @"$BUNDLE") \
-            || { echo "ERROR: validating $BUNDLE failed or exceeded the ~300 s healthcheck budget"; cat /tmp/bundle-oo.json 2>/dev/null || true; docker logs test-validator; exit 1; }
+            || { echo "ERROR: validating $BUNDLE failed or exceeded the ~260 s healthcheck budget"; cat /tmp/bundle-oo.json 2>/dev/null || true; docker logs test-validator; exit 1; }
           if [ "$(jq -r '.resourceType' /tmp/bundle-oo.json 2>/dev/null)" != "OperationOutcome" ]; then
             echo "ERROR: Expected an OperationOutcome for $BUNDLE"; cat /tmp/bundle-oo.json; exit 1
           fi
           echo "Cold validation of $BUNDLE took ${SECS} s"
-          if [ "${SECS%.*}" -ge 150 ]; then
-            echo "::warning::Cold bundle validation took ${SECS} s, over half of the ~300 s healthcheck failure budget"
+          if [ "${SECS%.*}" -ge 130 ]; then
+            echo "::warning::Cold bundle validation took ${SECS} s, over half of the ~260 s healthcheck failure budget"
           fi
 
           # Run a validation test
@@ -132,18 +167,67 @@ jobs:
             exit 1
           fi
           
-          # Healthcheck failure and recovery: freeze the java process (PID 1, the port stays open
-          # but does not answer, as during a blocking validation), then let it continue.
+          # Exposed routes (#21): only POST /validateResource, GET /health, GET /openapi.json.
+          FHIR=(-H "Content-Type: application/fhir+json" -H "Accept: application/fhir+json")
+          OBS=.github/test-resources/valid-observation.json
+          expect 200 -X POST "$V/validateResource?profile=http://hl7.org/fhir/StructureDefinition/Observation&profile=http://hl7.org/fhir/StructureDefinition/vitalsigns" "${FHIR[@]}" -d @"$OBS"
+          expect 400 -X POST "$V/validateResource?profiles=http://hl7.org/fhir/StructureDefinition/Observation" "${FHIR[@]}" -d @"$OBS"
+          expect 405 "$V/validateResource"
+          expect 200 "$V/health"
+          [ "$(jq -r .status /tmp/expect-body)" = "UP" ] || { echo "ERROR: unexpected /health body"; cat /tmp/expect-body; exit 1; }
+          expect 405 -X POST "$V/health"
+          expect 200 "$V/openapi.json"
+          PATHS=$(jq -c '.paths | keys' /tmp/expect-body)
+          [ "$PATHS" = '["/health","/openapi.json","/validateResource"]' ] || { echo "ERROR: /openapi.json is not our spec: $PATHS"; exit 1; }
+          # Every other context the validator registers (6.9.11; 7.x adds /fhirpath/check), both methods.
+          for path in /fhirpath /fhirpath/check /matchetype /testdata /loadIG /convert /snapshot /narrative \
+                      /transform /version /compile /docs /redoc /txTest /stop / /validateResource/ /_ready; do
+            expect 404 "$V$path"
+            expect 404 -X POST "$V$path" "${FHIR[@]}" -d '{}'
+          done
+          # Raw paths that normalize to an allowed route must not reach another handler: nginx
+          # matches the normalized path, the validator would see the raw one (/stop/../x -> /stop).
+          for path in /stop/../validateResource /loadIG/../validateResource /stop/%2e%2e/validateResource \
+                      /stop/%2E%2E/validateResource //validateResource /./validateResource /validateResource/. \
+                      /stop/../health /stop/../openapi.json; do
+            expect 404 --path-as-is -X POST "$V$path" "${FHIR[@]}" -d '{}'
+            expect 404 --path-as-is "$V$path"
+          done
+          expect 405 -I "$V/health" # GET only, no HEAD
+          expect 405 -I "$V/openapi.json"
+          expect 200 "$V/health" # POST /stop and the bypass attempts above did not reach the validator
+
+          # The validator port is not reachable from another container (only nginx on 8080 is).
+          if docker run --rm --network mii-fhir-validator_fhir-network --entrypoint wget mii-fhir-validator:test \
+               --no-proxy --tries=1 --timeout=5 -q -O /dev/null http://test-validator:8081/openapi.json; then
+            echo "ERROR: validator port 8081 is reachable from another container"; exit 1
+          fi
+          docker run --rm --network mii-fhir-validator_fhir-network --entrypoint wget mii-fhir-validator:test \
+            --no-proxy --tries=1 --timeout=5 -q -O /dev/null http://test-validator:8080/health
+
+          # A body over 1 MB passes nginx (client_max_body_size, temporary files in /tmp).
+          jq '.note = [{"text": ("x" * 1200000)}]' "$OBS" > /tmp/large-observation.json
+          expect 200 -X POST "$V/validateResource" "${FHIR[@]}" -d @/tmp/large-observation.json
+          [ "$(jq -r .resourceType /tmp/expect-body)" = "OperationOutcome" ] || { echo "ERROR: no OperationOutcome for the large body"; exit 1; }
+
+          # Healthcheck failure and recovery: freeze the java process (its port stays open but
+          # does not answer, as during a blocking validation), then let it continue.
           # The validations above may have left it unhealthy (3 retries x 3 s here), so start
           # from a confirmed healthy state; otherwise the STOP would prove nothing.
           wait_health healthy 120
-          docker kill -s STOP test-validator >/dev/null
+          docker exec test-validator sh -c 'kill -STOP "$(cat /tmp/validator.pid)"'
           wait_health unhealthy 60
-          docker kill -s CONT test-validator >/dev/null
+          docker exec test-validator sh -c 'kill -CONT "$(cat /tmp/validator.pid)"'
           wait_health healthy 60
 
+          # If nginx dies, the container stops with an error instead of running unreachable.
+          docker exec test-validator sh -c 'kill -KILL "$(cat /tmp/nginx.pid)"'
+          EXIT=$(timeout 30 docker wait test-validator) || { echo "ERROR: container did not stop after nginx died"; docker logs test-validator; exit 1; }
+          if [ "$EXIT" = "0" ]; then echo "ERROR: container exited 0 after nginx died"; docker logs test-validator; exit 1; fi
+          docker logs test-validator 2>&1 | grep -F "Error: nginx exited unexpectedly" \
+            || { echo "ERROR: missing supervisor message"; docker logs test-validator; exit 1; }
+
           echo "✓ Validator image test passed"
-          docker stop test-validator
       
       - name: Save image for upload
         run: docker save mii-fhir-validator:test | gzip > /tmp/mii-fhir-validator.tar.gz
