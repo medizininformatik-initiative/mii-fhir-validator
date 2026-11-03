@@ -29,7 +29,9 @@ paths:
 
         - Use the `Content-Type` header to specify the format of the submitted resource (JSON or XML).
         - Use the `Accept` header to specify the desired response format.
-        - Use the `profiles` query parameter to validate against one or more StructureDefinition canonical URLs (comma-separated). If omitted, the validator uses the profiles declared in `meta.profile` of the resource.
+        - Use the `profile` query parameter to validate against additional StructureDefinition canonical URLs, one URL per occurrence (`?profile=A&profile=B`). The profiles declared in `meta.profile` of the resource are always checked.
+        - Unknown query parameters and invalid values are rejected with `400 Bad Request`. Parameter names and enum values are case-sensitive unless stated otherwise.
+        - The parameters below are the ones relevant for MII validation. The FHIR Validator CLI accepts further parameters (e.g. `jurisdiction`, `maxValidationMessages`, `validationTimeout`); see its documentation.
 
         | Severity | Meaning |
         |---|---|
@@ -42,44 +44,61 @@ paths:
         description: FHIR Validator CLI – Calling the service
         url: https://confluence.hl7.org/spaces/FHIR/pages/35718580/Using+the+FHIR+Validator#UsingtheFHIRValidator-Callingtheservice%3A
       parameters:
-        - name: profiles
+        - name: profile
           in: query
           required: false
-          description: Comma-separated list of StructureDefinition URLs to validate the resource against. Supplements or overrides `meta.profile` in the resource.
+          description: |
+            StructureDefinition canonical URL to validate the resource against, in addition to the profiles in `meta.profile`.
+            Repeat the parameter for several profiles (`?profile=A&profile=B`); a comma-separated list is not split.
+          style: form
+          explode: true
           schema:
-            type: string
-          example: https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus
+            type: array
+            items:
+              type: string
+          example:
+            - https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Vitalstatus
         - name: resourceIdRule
           in: query
           required: false
-          description: Whether a resource ID is required.
+          description: |
+            Whether the resource must have an `id`. Case-insensitive.
+            If omitted, the validator's default applies.
           schema:
             type: string
-            enum: [OPTIONAL, REQUIRED, PROHIBITED]
-            default: OPTIONAL
-        - name: anyExtensionsAllowed
+            enum: [optional, required, prohibited]
+        - name: extension
           in: query
           required: false
-          description: If `false`, unknown extensions not declared in the loaded IGs will produce errors.
+          description: |
+            Extensions that are allowed even though no loaded IG defines them. Repeatable.
+            `any` allows all unknown extensions; any other value is a URL prefix (extension domain): extensions whose URL starts with it are allowed.
+            If omitted, unknown extensions are reported as errors.
+          style: form
+          explode: true
           schema:
-            type: boolean
-            default: true
-        - name: bpWarnings
+            type: array
+            items:
+              type: string
+          example:
+            - any
+        - name: bestPractice
           in: query
           required: false
-          description: Controls the severity level used for best-practice recommendations.
+          description: Severity used for best-practice recommendations (e.g. missing narrative, constraint `dom-6`). Case-sensitive.
           schema:
             type: string
             enum: [Ignore, Hint, Warning, Error]
-            default: Ignore
-        - name: displayOption
+            default: Warning
+        - name: checkDisplay
           in: query
           required: false
-          description: Controls how `Coding.display` values are validated against the terminology server.
+          description: |
+            How `Coding.display` values are compared with the terminology server's displays. Case-sensitive.
+            If omitted, the validator's default applies.
           schema:
             type: string
             enum: [Ignore, Check, CheckCaseAndSpace, CheckCase, CheckSpace]
-            default: Ignore
       requestBody:
         description: FHIR resource to validate, serialised as FHIR JSON or FHIR XML.
         required: true
@@ -171,7 +190,8 @@ paths:
                       ]
                     }
         "400":
-          description: Bad Request - Invalid parameters or malformed resource.
+          description: |
+            Bad Request: an unknown query parameter (`Unable to process param <name>=<value>`) or an invalid value (e.g. `No enum constant …` for a wrongly cased `bestPractice`).
           content:
             application/fhir+json:
               schema:
@@ -179,7 +199,8 @@ paths:
         "405":
           description: Method not allowed. Only POST is supported.
         "500":
-          description: Internal server error.
+          description: >-
+            Validation could not be run, e.g. a `profile` URL that is not in the loaded IGs (`Validation failed: Unable to resolve profile …`).
           content:
             application/fhir+json:
               schema:
