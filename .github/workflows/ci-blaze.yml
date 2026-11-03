@@ -38,28 +38,13 @@ jobs:
       run: cp .env.default .env
 
     - name: Start services (CI mode) with Blaze profile (which is set by default in .env by step before)
-      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --build --wait
-    
+      # --wait returns once Blaze and the validator report healthy (image HEALTHCHECK: IGs loaded,
+      # HTTP served). The timeout starts after the build and covers Blaze plus validator startup.
+      run: docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml up --build --wait --wait-timeout 600
+
     - name: Upload MII terminology to Blaze
       run: ./scripts/terminology/upload-terminology.sh
-    
-    - name: Wait for validator to be ready
-      run: |
-        echo "Waiting for validator to start..."
-        for i in {1..120}; do
-          if docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
-            echo "Validator is ready!"
-            break
-          fi
-          echo "Attempt $i/120: not ready yet..."
-          sleep 3
-        done
-        if ! docker compose logs validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
-          echo "ERROR: Validator failed to start. Logs:"
-          docker compose logs validator
-          exit 1
-        fi
-    
+
     - name: Run validation test
       # Fails on fatal/error issues and on malformed or missing responses; results go to the artifact.
       run: OUT_DIR=validation-results ./scripts/test/validate-test-resources.sh

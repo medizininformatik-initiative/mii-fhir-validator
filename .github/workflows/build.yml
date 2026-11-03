@@ -63,39 +63,61 @@ jobs:
           # Use an unreachable forward proxy and bypass it for the internal Blaze service.
           # Successful validation confirms that the proxy properties are applied without
           # routing internal terminology traffic through the proxy.
+          # The probe command comes from the image HEALTHCHECK; the short interval/retries here
+          # only speed up the failure/recovery test below (compose CI uses the image timings).
           docker run -d --name test-validator \
             --network mii-fhir-validator_fhir-network \
             -p 8080:8080 \
+            --health-interval=3s --health-timeout=5s --health-retries=3 \
             -e TX_SERVER=http://blaze-terminology:8080/fhir \
             -e JAVA_OPTS=-Xmx4g \
             -e FORWARD_PROXY_HOST=proxy.invalid \
             -e FORWARD_PROXY_PORT=3128 \
             -e FORWARD_PROXY_NON_PROXY_HOSTS=blaze-terminology \
             mii-fhir-validator:test
-          
-          # Wait for validator to start
-          echo "Waiting for validator to start..."
-          for i in {1..120}; do
-            if docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
-              echo "Validator is ready!"
-              break
-            fi
-            echo "Attempt $i/120: not ready yet..."
-            sleep 3
-          done
-          
-          if ! docker logs test-validator 2>&1 | grep -q "FHIR Validator HTTP Service started"; then
-            echo "ERROR: Validator failed to start"
-            docker logs test-validator
-            exit 1
-          fi
+
+          # wait_health <healthy|unhealthy> <seconds>: poll the health status via docker ps filters;
+          # fail at once if the container exits, print the logs on failure.
+          wait_health() {
+            local want="$1" deadline=$((SECONDS + $2))
+            echo "Waiting up to $2 s for test-validator to become $want..."
+            while [ "$SECONDS" -lt "$deadline" ]; do
+              if [ -n "$(docker ps -a --filter name=^test-validator$ --filter status=exited -q)" ]; then
+                echo "ERROR: test-validator exited"; docker logs test-validator; return 1
+              fi
+              if [ -n "$(docker ps --filter name=^test-validator$ --filter health="$want" -q)" ]; then
+                echo "test-validator is $want after $(($2 - deadline + SECONDS)) s"; return 0
+              fi
+              sleep 5
+            done
+            echo "ERROR: test-validator did not become $want within $2 s"; docker logs test-validator; return 1
+          }
+
+          wait_health healthy 600
 
           if ! docker logs test-validator 2>&1 | grep -Fq -- "-Dhttp.proxyHost=proxy.invalid"; then
             echo "ERROR: Forward proxy JVM properties were not applied"
             docker logs test-validator
             exit 1
           fi
-          
+
+          # Time the largest test resource on a cold terminology cache. The validator serves one
+          # request at a time, so this blocks the health probe; the image allows ~5 min of
+          # failed probes (retries=20) before it reports unhealthy.
+          BUNDLE=.github/test-resources/Bundle-mii-exa-base-test-data-bundle-1.json
+          # --fail-with-body rejects HTTP errors, so a fast 4xx/5xx is never recorded as a timing.
+          SECS=$(curl -sS --fail-with-body -o /tmp/bundle-oo.json -w '%{time_total}' --max-time 300 \
+            -X POST http://localhost:8080/validateResource \
+            -H "Content-Type: application/fhir+json" -H "Accept: application/fhir+json" -d @"$BUNDLE") \
+            || { echo "ERROR: validating $BUNDLE failed or exceeded the ~300 s healthcheck budget"; cat /tmp/bundle-oo.json 2>/dev/null || true; docker logs test-validator; exit 1; }
+          if [ "$(jq -r '.resourceType' /tmp/bundle-oo.json 2>/dev/null)" != "OperationOutcome" ]; then
+            echo "ERROR: Expected an OperationOutcome for $BUNDLE"; cat /tmp/bundle-oo.json; exit 1
+          fi
+          echo "Cold validation of $BUNDLE took ${SECS} s"
+          if [ "${SECS%.*}" -ge 150 ]; then
+            echo "::warning::Cold bundle validation took ${SECS} s, over half of the ~300 s healthcheck failure budget"
+          fi
+
           # Run a validation test
           echo "Testing validation service..."
           RESPONSE=$(curl -s -X POST http://localhost:8080/validateResource \
@@ -110,6 +132,16 @@ jobs:
             exit 1
           fi
           
+          # Healthcheck failure and recovery: freeze the java process (PID 1, the port stays open
+          # but does not answer, as during a blocking validation), then let it continue.
+          # The validations above may have left it unhealthy (3 retries x 3 s here), so start
+          # from a confirmed healthy state; otherwise the STOP would prove nothing.
+          wait_health healthy 120
+          docker kill -s STOP test-validator >/dev/null
+          wait_health unhealthy 60
+          docker kill -s CONT test-validator >/dev/null
+          wait_health healthy 60
+
           echo "✓ Validator image test passed"
           docker stop test-validator
       
