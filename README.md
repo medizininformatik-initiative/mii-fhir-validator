@@ -96,7 +96,8 @@ Configuration is split into two tiers:
 
 **Set via `.env` (required for basic use):**
 - `JAVA_OPTS` - JVM memory settings (default: `-Xmx16g`)
-- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
+- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`); replaces the image's default IG list
+- `ADDITIONAL_IG_PARAMS` - Implementation Guides loaded in addition to `IG_PARAMS` or, if unset, the image's default IGs (e.g., `-ig hl7.fhir.us.cqfmeasures#5.0.0`)
 
 **Optional forward proxy settings:**
 - `FORWARD_PROXY_HOST` - Forward proxy hostname or IP address, without a URL scheme
@@ -162,7 +163,7 @@ The pre-built image contains the full FHIR package cache for all default MII IGs
 
 ### Adding Custom IGs for Offline Use
 
-If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
+If you add IGs beyond the defaults via `ADDITIONAL_IG_PARAMS` (or replace the list via `IG_PARAMS`), they and their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
 
 ```bash
 docker compose up -d
@@ -172,9 +173,9 @@ docker compose down
 
 The `fhir-package-cache` Docker volume persists the cache at `$FHIR_HOME/.fhir/packages` across container restarts. By default (`FHIR_CACHE_SEED=true`), the baked-in MII IG cache is seeded into an empty volume on first start, enabling offline operation immediately. If the volume is read-only, the validator falls back to the baked-in cache automatically.
 
-To load IGs from the `igs/` directory:
+To load IGs from the `igs/` directory in addition to the defaults (their dependencies must be cached as described above):
 ```bash
-IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
+ADDITIONAL_IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
 ```
 
 **Note:** A terminology service (Blaze) is still required for offline terminology validation (CodeSystem, ValueSet bindings, code validation). SNOMED CT release files must be provided locally — see [snomed-ct-release/README.md](snomed-ct-release/README.md).

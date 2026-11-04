@@ -73,7 +73,7 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
 ## Conventions not enforced by tooling
 
 - The entrypoint is POSIX `sh`, not bash. It relies on intentional word-splitting of
-  `IG_PARAMS`, `FHIR_SETTINGS_ARG`, `DISPLAY_ARG` and `TX_LOG`; keep the `shellcheck disable=SC2086` line.
+  `IG_PARAMS`, `ADDITIONAL_IG_PARAMS`, `FHIR_SETTINGS_ARG`, `DISPLAY_ARG` and `TX_LOG`; keep the `shellcheck disable=SC2086` line.
 - Misconfiguration fails fast: `Error: …` on stderr, `exit 1`. Paired variables (proxy
   host/port, tx username/password) are both-or-neither. Each new check gets a case in
   `tests/entrypoint/run.sh` that asserts the exit status and the message.

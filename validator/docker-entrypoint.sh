@@ -81,6 +81,22 @@ case "${DISPLAY_ISSUES_ARE_WARNINGS:-false}" in
     ;;
 esac
 
+# IGs loaded in addition to IG_PARAMS or the image defaults (#29): only "-ig <source>" pairs,
+# so a package without -ig, or an option such as -tx in place of a source, fails here instead
+# of reaching the validator. A file whose name starts with "-" needs a path: -ig ./-name.tgz
+ig_pairs() { # ig_pairs <word>...: true if the words alternate "-ig <source>", source not "-…"
+  while [ "$#" -gt 0 ]; do
+    [ "$1" = "-ig" ] && [ "$#" -ge 2 ] || return 1
+    case "$2" in -*) return 1 ;; esac
+    shift 2
+  done
+}
+# shellcheck disable=SC2086  # split into words like on the java command line below
+if [ -n "${ADDITIONAL_IG_PARAMS:-}" ] && ! ig_pairs $ADDITIONAL_IG_PARAMS; then
+  echo 'Error: ADDITIONAL_IG_PARAMS must be a list of "-ig <package#version|path>" pairs.' >&2
+  exit 1
+fi
+
 # nginx temporary files, the PID files and fhir-settings.json live in /tmp.
 if ! mkdir -p /tmp/nginx 2>/dev/null || [ ! -w /tmp/nginx ]; then
   echo "Error: /tmp must be writable. With a read-only root filesystem, mount a tmpfs or emptyDir at /tmp." >&2
@@ -180,7 +196,7 @@ nginx -e stderr -c "$NGINX_CONF" &
 nginx_pid=$!
 
 # The wrapper writes its PID before exec'ing java, so /tmp/validator.pid is the java process.
-# shellcheck disable=SC2086  # intentional word-splitting on IG_PARAMS, FHIR_SETTINGS_ARG, DISPLAY_ARG and TX_LOG
+# shellcheck disable=SC2086  # intentional word-splitting on IG_PARAMS, ADDITIONAL_IG_PARAMS, FHIR_SETTINGS_ARG, DISPLAY_ARG and TX_LOG
 sh -c 'echo "$$" > /tmp/validator.pid && exec "$@"' validator \
   java ${JAVA_OPTS:--Xmx16g} -jar /app/validator_cli.jar \
   server \
@@ -189,7 +205,7 @@ sh -c 'echo "$$" > /tmp/validator.pid && exec "$@"' validator \
   -txCache ${TX_CACHE_DIR:-/tmp/tx-cache} \
   ${TX_SERVER:+-tx $TX_SERVER} \
   $FHIR_SETTINGS_ARG \
-  ${IG_PARAMS:-$DEFAULT_IG_PARAMS} \
+  ${IG_PARAMS:-$DEFAULT_IG_PARAMS} ${ADDITIONAL_IG_PARAMS:-} \
   -authorise-non-conformant-tx-servers \
   -advisor-file /app/validator/advisor.json \
   $DISPLAY_ARG \

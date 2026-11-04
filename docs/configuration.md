@@ -123,6 +123,25 @@ Space-separated list of `-ig` parameters specifying which Implementation Guides 
 
 See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
+`IG_PARAMS` replaces that list. To keep the MII IGs and load more, use `ADDITIONAL_IG_PARAMS`.
+
+---
+
+#### `ADDITIONAL_IG_PARAMS`
+
+`-ig` parameters loaded **in addition to** the IGs from `IG_PARAMS` or, if `IG_PARAMS` is unset or empty, the image's default MII IGs. Use it to add an IG without copying, and later updating, the full default list.
+
+```dotenv
+ADDITIONAL_IG_PARAMS="-ig hl7.fhir.us.cqfmeasures#5.0.0"
+```
+
+Each entry is `-ig <package-id>#<version>` or `-ig /path/to/package.tgz`. Any other content, such as a package without `-ig`, stops the container at startup with `Error: ADDITIONAL_IG_PARAMS must be a list of "-ig <package#version|path>" pairs.`
+
+- **Download at startup:** packages that are not in the image's cache are downloaded when the validator starts, together with their dependencies. This needs network access (or a [forward proxy](#forward-proxy)) and a writable package cache (`FHIR_HOME`). With a read-only cache, the validator stops at startup with `Read-only file system` in the log and the container exits with code 1. It makes startup longer; the health check allows 300 s before failures count. The alternative is a download during the first validation that needs the package, which can take long enough for clients to time out. For offline use, the added packages **and all their dependencies** must already be in the package cache: start the validator once while online (see [Custom IGs](use.md#custom-igs)). A local `-ig /igs/<file>.tgz` alone isn't enough when the package has dependencies that aren't cached.
+- **Versions:** don't add another version of a default IG here; replace the list with `IG_PARAMS` instead. Added packages can bring other versions of shared dependencies (for example `hl7.terminology`). Check that MII resources still validate as before (`make test`).
+
+**Default:** *(unset)*
+
 ## Exposed Endpoints
 
 Images built from this repository after `0.0.1-alpha.9` expose only three routes on port `8080`:

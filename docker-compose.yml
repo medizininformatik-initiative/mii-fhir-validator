@@ -24,6 +24,7 @@ services:
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}
       - IG_PARAMS=${IG_PARAMS}
+      - ADDITIONAL_IG_PARAMS=${ADDITIONAL_IG_PARAMS:-}
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:${FHIR_HOME:-/root}/.fhir/packages
@@ -61,6 +62,7 @@ services:
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}
       - IG_PARAMS=${IG_PARAMS}
+      - ADDITIONAL_IG_PARAMS=${ADDITIONAL_IG_PARAMS:-}
     volumes:
       - ./igs:/igs:ro
       - fhir-package-cache:${FHIR_HOME:-/root}/.fhir/packages
