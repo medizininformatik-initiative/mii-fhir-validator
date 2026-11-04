@@ -49,6 +49,16 @@ jobs:
       # Fails on fatal/error issues and on malformed or missing responses; results go to the artifact.
       run: OUT_DIR=validation-results ./scripts/test/validate-test-resources.sh
 
+    - name: A wrong display is an error by default (#27)
+      run: ./scripts/test/check-display-mode.sh error
+
+    - name: A wrong display is a warning with DISPLAY_ISSUES_ARE_WARNINGS=true (#27)
+      # The shell variable overrides .env; compose recreates only the validator (tx cache volume kept).
+      run: |
+        DISPLAY_ISSUES_ARE_WARNINGS=true docker compose -f docker-compose.yml -f .github/configs/docker-compose.ci.yml \
+          up -d --wait --wait-timeout 600 validator
+        ./scripts/test/check-display-mode.sh warning
+
     - name: Upload OperationOutcome artifacts
       if: always()
       uses: actions/upload-artifact@v7

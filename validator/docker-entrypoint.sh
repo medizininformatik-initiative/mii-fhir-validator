@@ -70,6 +70,17 @@ if { [ -n "${TX_SERVER_USERNAME:-}" ] || [ -n "${TX_SERVER_PASSWORD:-}" ]; } && 
   exit 1
 fi
 
+# Report a wrong Coding.display as a warning instead of an error (#27). Codes, ValueSet
+# membership and missing code systems are still errors.
+case "${DISPLAY_ISSUES_ARE_WARNINGS:-false}" in
+  true) DISPLAY_ARG="-display-issues-are-warnings" ;;
+  false) DISPLAY_ARG="" ;;
+  *)
+    echo "Error: DISPLAY_ISSUES_ARE_WARNINGS must be true or false." >&2
+    exit 1
+    ;;
+esac
+
 # nginx temporary files, the PID files and fhir-settings.json live in /tmp.
 if ! mkdir -p /tmp/nginx 2>/dev/null || [ ! -w /tmp/nginx ]; then
   echo "Error: /tmp must be writable. With a read-only root filesystem, mount a tmpfs or emptyDir at /tmp." >&2
@@ -169,7 +180,7 @@ nginx -e stderr -c "$NGINX_CONF" &
 nginx_pid=$!
 
 # The wrapper writes its PID before exec'ing java, so /tmp/validator.pid is the java process.
-# shellcheck disable=SC2086  # intentional word-splitting on IG_PARAMS, FHIR_SETTINGS_ARG and TX_LOG
+# shellcheck disable=SC2086  # intentional word-splitting on IG_PARAMS, FHIR_SETTINGS_ARG, DISPLAY_ARG and TX_LOG
 sh -c 'echo "$$" > /tmp/validator.pid && exec "$@"' validator \
   java ${JAVA_OPTS:--Xmx16g} -jar /app/validator_cli.jar \
   server \
@@ -181,6 +192,7 @@ sh -c 'echo "$$" > /tmp/validator.pid && exec "$@"' validator \
   ${IG_PARAMS:-$DEFAULT_IG_PARAMS} \
   -authorise-non-conformant-tx-servers \
   -advisor-file /app/validator/advisor.json \
+  $DISPLAY_ARG \
   -verbose \
   -show-times \
   ${TX_LOG:+-txLog $TX_LOG} &
