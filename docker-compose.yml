@@ -22,6 +22,7 @@ services:
       - TX_SERVER_PASSWORD=${TX_SERVER_PASSWORD:-}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
+      - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro
@@ -58,6 +59,7 @@ services:
       - TX_SERVER=${TX_SERVER:-http://nginx/fhir}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
+      - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}
       - IG_PARAMS=${IG_PARAMS}
     volumes:
       - ./igs:/igs:ro

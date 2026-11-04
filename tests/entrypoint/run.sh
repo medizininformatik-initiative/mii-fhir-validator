@@ -119,6 +119,9 @@ run "tx username without password" 1 -e TX_SERVER=https://tx.example/fhir -e TX_
 run "tx password without username" 1 -e TX_SERVER=https://tx.example/fhir -e TX_SERVER_PASSWORD=pw -- "+$pair_tx" "-ARG=server"
 run "tx credentials without TX_SERVER" 1 -e TX_SERVER_USERNAME=user -e TX_SERVER_PASSWORD=pw -- \
   "+Error: TX_SERVER must be set when TX_SERVER_USERNAME/TX_SERVER_PASSWORD are provided." "-ARG=server"
+display_err="Error: DISPLAY_ISSUES_ARE_WARNINGS must be true or false."
+run "DISPLAY_ISSUES_ARE_WARNINGS=yes" 1 -e DISPLAY_ISSUES_ARE_WARNINGS=yes -- "+$display_err" "-ARG=server"
+run "DISPLAY_ISSUES_ARE_WARNINGS=TRUE" 1 -e DISPLAY_ISSUES_ARE_WARNINGS=TRUE -- "+$display_err" "-ARG=server"
 
 # Proxy properties.
 run "valid proxy" 0 -e FORWARD_PROXY_HOST=proxy.example -e FORWARD_PROXY_PORT=3128 -- \
@@ -141,7 +144,10 @@ run "http TX_SERVER with basic auth" 0 -e TX_SERVER=http://tx.example/fhir -e TX
 # Java arguments: the validator listens on loopback port 8081 only; nginx owns port 8080.
 run "default arguments" 0 -- "+ARG=-Xmx16g" "+ARG=server" "+ARG=8081" "-ARG=8080" "-ARG=-allowNetworkAccess" \
   "+ARG=4.0" "+ARG=/tmp/tx-cache" "+ARG=default.pkg#1.0.0" "+ARG=/app/validator/advisor.json" "-ARG=-txLog" \
-  "+PIDFILE=ok"
+  "-ARG=-display-issues-are-warnings" "+PIDFILE=ok"
+run "DISPLAY_ISSUES_ARE_WARNINGS=true" 0 -e DISPLAY_ISSUES_ARE_WARNINGS=true -- "+ARG=-display-issues-are-warnings"
+run "DISPLAY_ISSUES_ARE_WARNINGS=false" 0 -e DISPLAY_ISSUES_ARE_WARNINGS=false -- "-ARG=-display-issues-are-warnings" "+ARG=server"
+run "DISPLAY_ISSUES_ARE_WARNINGS empty" 0 -e DISPLAY_ISSUES_ARE_WARNINGS= -- "-ARG=-display-issues-are-warnings" "+ARG=server"
 run "IG_PARAMS replaces the defaults" 0 -e "IG_PARAMS=-ig custom.pkg#2.0.0 -ig /igs/local.tgz" -- \
   "+ARG=custom.pkg#2.0.0" "+ARG=/igs/local.tgz" "-ARG=default.pkg#1.0.0"
 run "JAVA_OPTS, FHIR_VERSION, TX_CACHE_DIR, TX_LOG" 0 -e JAVA_OPTS=-Xmx2g -e FHIR_VERSION=5.0 \

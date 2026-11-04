@@ -110,6 +110,7 @@ Configuration is split into two tiers:
 - `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
 - `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
 - `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
+- `DISPLAY_ISSUES_ARE_WARNINGS` - Report a wrong `Coding.display` as a warning instead of an error (default: `false`)
 
 **Using .env file:**
 ```bash

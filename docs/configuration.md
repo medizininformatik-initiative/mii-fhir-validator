@@ -98,6 +98,25 @@ Path inside the container for the terminology server request log. Each validatio
 
 ---
 
+#### `DISPLAY_ISSUES_ARE_WARNINGS`
+
+When `true`, a `Coding.display` that doesn't match the code (for example `Invalid display … A valid display is …`) is reported as a **warning** instead of an error. The container passes the validator option `-display-issues-are-warnings`, which applies to every validation request.
+
+Only display mismatches are downgraded. This includes a required-binding error such as `The code provided … was not found in the value set …` when the wrong display is its only cause. These remain errors:
+- unknown codes;
+- codes that are not members of a required value set;
+- code systems or code system versions that the terminology server doesn't know.
+
+Example: a Condition with ICD-10-GM `2025` code `E10.30` and display `Diabetes mellitus` has the wrong display. The setting doesn't help while ICD-10-GM 2025 is missing from the terminology server: the result is still "code system … not found". Once that version is loaded, the resource validates with warnings only when the setting is `true`, and with errors when it is `false`.
+
+The `checkDisplay` query parameter of `/validateResource` still decides whether the display is checked at all (see the [API reference](api.md)).
+
+Allowed values are `true` and `false` in lowercase. Unset or empty means `false`. Any other value stops the container at startup with `Error: DISPLAY_ISSUES_ARE_WARNINGS must be true or false.`
+
+**Default:** `false` *(set in `docker-compose.yml`)*
+
+---
+
 #### `IG_PARAMS`
 
 Space-separated list of `-ig` parameters specifying which Implementation Guides to load. Each entry is in the form `-ig <package-id>#<version>` or `-ig /path/to/package.tgz` for local files.
