@@ -1,8 +1,10 @@
 #!/bin/bash
 # Tests for validator/docker-entrypoint.sh: configuration errors (exit status and message),
-# proxy and fhir-settings.json handling, java argument construction and package cache modes.
-# A stub `java` prints its arguments instead of starting the validator, so no terminology
-# server, SNOMED CT or IG packages are needed.
+# proxy and fhir-settings.json handling, java argument construction, package cache modes and
+# the supervision of nginx and the validator (signals, unexpected exits, exit codes).
+# Stubs for `java` and `nginx` print their arguments instead of starting the real programs, so
+# no terminology server, SNOMED CT or IG packages are needed. FAKE_JAVA / FAKE_NGINX select
+# what the stub does after starting (see the stubs below).
 #
 # Env: ENTRYPOINT_TEST_IMAGE  image to run in. Default ubuntu:24.04 (same /bin/sh as the real
 #      image) with the working-tree entrypoint mounted. Set it to a built validator image, e.g.
@@ -21,14 +23,36 @@ trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$work/fake" "$work/cache/.fhir/packages/example.pkg#1.0.0/package"
 echo '{"name":"example.pkg","version":"1.0.0"}' > "$work/cache/.fhir/packages/example.pkg#1.0.0/package/package.json"
+# FAKE_JAVA: stop (default) sends TERM to PID 1 like `docker stop` once the server is up;
+#   exit crashes after 1 s with FAKE_JAVA_EXIT; ignore-term is like stop but ignores the
+#   forwarded TERM; run keeps running until it is signalled.
 cat > "$work/fake/java" <<'EOF'
 #!/bin/sh
+trap 'echo "JAVA: got TERM"; exit 143' TERM
 echo "JAVA_TOOL_OPTIONS=$JAVA_TOOL_OPTIONS"
 for a in "$@"; do echo "ARG=$a"; done
 if [ -f /tmp/fhir-settings.json ]; then echo "SETTINGS:"; cat /tmp/fhir-settings.json; fi
-exit "${FAKE_JAVA_EXIT:-0}"
+[ "$(cat /tmp/validator.pid 2>/dev/null)" = "$$" ] && echo "PIDFILE=ok"
+case "${FAKE_JAVA:-stop}" in
+  stop) kill -TERM 1 ;;
+  exit) sleep 1; exit "${FAKE_JAVA_EXIT:-0}" ;;
+  ignore-term) trap '' TERM; kill -TERM 1 ;;
+esac
+sleep 30 & wait $!
 EOF
-chmod 755 "$work/fake/java"
+# FAKE_NGINX: run (default) keeps running until it is signalled; exit ends after 1 s with
+#   FAKE_NGINX_EXIT. `nginx -t` exits with FAKE_NGINX_TEST_EXIT (default 0).
+cat > "$work/fake/nginx" <<'EOF'
+#!/bin/sh
+trap 'echo "NGINX: got TERM"; exit 0' TERM
+for a in "$@"; do echo "NGINX_ARG=$a"; done
+case " $* " in *" -t "*) exit "${FAKE_NGINX_TEST_EXIT:-0}" ;; esac
+case "${FAKE_NGINX:-run}" in
+  exit) sleep 1; exit "${FAKE_NGINX_EXIT:-0}" ;;
+esac
+sleep 30 & wait $!
+EOF
+chmod 755 "$work/fake/java" "$work/fake/nginx"
 chmod -R a+rX "$work"
 
 mounts=(-v "$work/fake:/fake:ro" -v "$work/cache:/app/fhir-cache:ro")
@@ -57,7 +81,7 @@ run() {
   for pattern in "$@"; do
     p="${pattern#[+-]}"
     mode=-qF
-    [[ "$p" == ARG=* ]] && mode=-qxF # one java argument per line: match it exactly
+    [[ "$p" == ARG=* || "$p" == NGINX_ARG=* ]] && mode=-qxF # one argument per line: match it exactly
     case "$pattern" in
       +*) grep "$mode" -- "$p" <<<"$out" || problems+=" missing '$p';" ;;
       -*) grep "$mode" -- "$p" <<<"$out" && problems+=" unexpected '$p';" ;;
@@ -114,15 +138,33 @@ run "https TX_SERVER with basic auth" 0 -e TX_SERVER=https://tx.example/fhir -e 
 run "http TX_SERVER with basic auth" 0 -e TX_SERVER=http://tx.example/fhir -e TX_SERVER_USERNAME=user \
   -e TX_SERVER_PASSWORD=pw -- '+"authenticationType": "basic"' '+"allowHttp": true'
 
-# Java arguments.
-run "default arguments" 0 -- "+ARG=-Xmx16g" "+ARG=server" "+ARG=-allowNetworkAccess" "+ARG=8080" \
-  "+ARG=4.0" "+ARG=/tmp/tx-cache" "+ARG=default.pkg#1.0.0" "+ARG=/app/validator/advisor.json" "-ARG=-txLog"
+# Java arguments: the validator listens on loopback port 8081 only; nginx owns port 8080.
+run "default arguments" 0 -- "+ARG=-Xmx16g" "+ARG=server" "+ARG=8081" "-ARG=8080" "-ARG=-allowNetworkAccess" \
+  "+ARG=4.0" "+ARG=/tmp/tx-cache" "+ARG=default.pkg#1.0.0" "+ARG=/app/validator/advisor.json" "-ARG=-txLog" \
+  "+PIDFILE=ok"
 run "IG_PARAMS replaces the defaults" 0 -e "IG_PARAMS=-ig custom.pkg#2.0.0 -ig /igs/local.tgz" -- \
   "+ARG=custom.pkg#2.0.0" "+ARG=/igs/local.tgz" "-ARG=default.pkg#1.0.0"
 run "JAVA_OPTS, FHIR_VERSION, TX_CACHE_DIR, TX_LOG" 0 -e JAVA_OPTS=-Xmx2g -e FHIR_VERSION=5.0 \
   -e TX_CACHE_DIR=/tmp/other -e TX_LOG=/tmp/other/tx.log -- \
   "+ARG=-Xmx2g" "-ARG=-Xmx16g" "+ARG=5.0" "+ARG=/tmp/other" "+ARG=-txLog" "+ARG=/tmp/other/tx.log"
-run "java exit status is passed through" 3 -e FAKE_JAVA_EXIT=3 -- "+ARG=server"
+
+# nginx and supervision. A normal stop (TERM to PID 1) stops both children and exits 0; an
+# unexpected exit of either child stops the other and fails with its code (0 becomes 1).
+run "nginx config is tested, then started" 0 -- "+NGINX_ARG=-t" "+NGINX_ARG=-c" \
+  "+NGINX_ARG=/app/validator/nginx.conf" "+NGINX_ARG=-e" "+NGINX_ARG=stderr"
+run "SIGTERM stops both and exits 0" 0 -- "+JAVA: got TERM" "+NGINX: got TERM" "-Error"
+run "validator exit status is passed through" 3 -e FAKE_JAVA=exit -e FAKE_JAVA_EXIT=3 -- \
+  "+Error: validator exited unexpectedly with code 3" "+NGINX: got TERM"
+run "validator exit 0 is a failure" 1 -e FAKE_JAVA=exit -e FAKE_JAVA_EXIT=0 -- \
+  "+Error: validator exited unexpectedly with code 0" "+NGINX: got TERM"
+run "nginx exit status is passed through" 2 -e FAKE_JAVA=run -e FAKE_NGINX=exit -e FAKE_NGINX_EXIT=2 -- \
+  "+Error: nginx exited unexpectedly with code 2" "+JAVA: got TERM"
+run "nginx exit 0 is a failure" 1 -e FAKE_JAVA=run -e FAKE_NGINX=exit -e FAKE_NGINX_EXIT=0 -- \
+  "+Error: nginx exited unexpectedly with code 0" "+JAVA: got TERM"
+run "nginx config test failure" 1 -e FAKE_NGINX_TEST_EXIT=1 -- \
+  "+Error: nginx configuration test failed" "-ARG=server"
+run "child ignoring TERM is killed after the grace period" 0 -e FAKE_JAVA=ignore-term -- \
+  "+NGINX: got TERM" "+Warning: still running after 8 s; sending KILL."
 
 # Package cache modes.
 h="$(home)"
@@ -137,8 +179,10 @@ run "populated cache is not reseeded" 0 -v "$h:/data" -e FHIR_HOME=/data -- \
   "+already populated; skipping seed" "+-Duser.home=/data"
 run "read-only FHIR_HOME falls back to baked-in cache" 0 -v "$(home):/data:ro" -e FHIR_HOME=/data -- \
   "+FHIR_HOME not writable; using baked-in read-only cache at /app/fhir-cache" "+-Duser.home=/app/fhir-cache"
-run "read-only root filesystem" 0 --read-only -e FHIR_HOME=/var/lib/fhir -- \
+run "read-only root filesystem" 0 --read-only --tmpfs /tmp -e FHIR_HOME=/var/lib/fhir -- \
   "+using baked-in read-only cache" "+-Duser.home=/app/fhir-cache"
+run "read-only root without writable /tmp" 1 --read-only -e FHIR_HOME=/var/lib/fhir -- \
+  "+Error: /tmp must be writable" "-ARG=server" "-NGINX_ARG=-t"
 h="$(home)"
 run "FHIR_CACHE_SEED=false starts blank" 0 -v "$h:/data" -e FHIR_HOME=/data -e FHIR_CACHE_SEED=false -- \
   "-Seeded" "-baked-in" "+-Duser.home=/data"

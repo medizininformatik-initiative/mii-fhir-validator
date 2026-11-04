@@ -42,7 +42,7 @@ Without this step, terminology-dependent validation (CodeSystem lookups, ValueSe
 
 ## Validating a FHIR Resource
 
-The validator exposes a single HTTP endpoint on port `8080`.
+The validator exposes a single validation endpoint on port `8080`, plus `GET /health` and `GET /openapi.json`. All other endpoints of the FHIR Validator CLI server are blocked (see [Exposed Endpoints](configuration.md#exposed-endpoints)).
 
 ### Endpoint
 

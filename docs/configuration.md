@@ -104,14 +104,30 @@ Space-separated list of `-ig` parameters specifying which Implementation Guides 
 
 See [`.env.default`](../.env.default) for the full default list of pre-configured MII IGs.
 
+## Exposed Endpoints
+
+Images built from this repository after `0.0.1-alpha.9` expose only three routes on port `8080`:
+
+| Route | Purpose |
+|---|---|
+| `POST /validateResource` | Validation, query parameters as documented in the [API reference](api.md) |
+| `GET /health` | Readiness (see [Health Check](#health-check)) |
+| `GET /openapi.json` | The API description of this image |
+
+The FHIR Validator CLI server has more endpoints, among them `/stop` (shuts the validator down) and `/loadIG` (loads packages from caller-supplied URLs or paths into the shared engine), all without authentication. They are not reachable: the validator listens on `127.0.0.1:8081` inside the container only, and an nginx in the same container on port `8080` forwards the three routes above. Every other path returns `404`, a wrong method `405`. Endpoints added by future validator versions are blocked the same way. There is no setting to re-enable them; if you need them, run the `validator_cli.jar` directly or stay on `0.0.1-alpha.9`.
+
+The container entrypoint supervises both processes. On `docker stop` (SIGTERM) it stops both and exits `0`; a process that hasn't stopped after 8 s is killed. If either process ends on its own, the entrypoint stops the other and the container exits with that process's exit code (`1` if it was `0`), so a restart policy can bring it back.
+
+nginx, the PID files (`/tmp/validator.pid`, `/tmp/nginx.pid`) and `fhir-settings.json` write to `/tmp`, which must be writable; with a read-only root filesystem, mount a tmpfs or `emptyDir` there. The container exits with an error otherwise.
+
 ## Health Check
 
-Images built from this repository after `0.0.1-alpha.9` have a Docker `HEALTHCHECK` that requests `GET http://127.0.0.1:8080/openapi.json` inside the container (`wget --no-proxy`, every 10 s, 5 s timeout). `docker compose ps` shows the validator as `healthy`, and `docker compose up --wait` waits for it.
+Images built from this repository after `0.0.1-alpha.9` have a Docker `HEALTHCHECK` that requests `GET http://127.0.0.1:8080/health` inside the container (`wget --no-proxy`, every 10 s, 5 s timeout). `docker compose ps` shows the validator as `healthy`, and `docker compose up --wait` waits for it.
 
-- **What `healthy` means:** the validator has loaded all IGs and answers HTTP requests. It opens port 8080 only after loading, and `/openapi.json` returns static content without running a validation.
+- **What `healthy` means:** nginx runs and the validator has loaded all IGs and answers HTTP requests. `/health` asks the validator on every call (it requests the validator's own API description, which doesn't run a validation) and returns `{"status":"UP"}`; if the validator doesn't answer within 3 s it returns `500`.
 - **What it does not mean:** that the terminology has been uploaded to Blaze or that terminology validation works. Run `./scripts/terminology/upload-terminology.sh` and the validation tests as before.
 - **Startup:** failures during the first 300 s (`start-period`) don't count. A successful check marks the container `healthy` right away, so the start period doesn't add any waiting time.
-- **Long validations:** the validator handles one HTTP request at a time, so a running validation blocks the health check until it is done. The check reports `unhealthy` only after 20 failed attempts in a row. Docker starts the next attempt 10 s after the previous one ends, and a blocked attempt takes 5 s, so that's about 5 minutes. A validation that takes longer still marks the container `unhealthy` until it finishes. Docker itself never restarts an unhealthy container.
+- **Long validations:** the validator handles one HTTP request at a time, so a running validation blocks the health check until it is done. A single `/health` call fails after about 3 s when the validator doesn't answer (nginx returns `500`). Docker reports `unhealthy` only after 20 failed attempts in a row; it starts the next attempt 10 s after the previous one ends, so that's 20 × (10 s + ~3 s) ≈ 4 minutes 20 seconds, depending on scheduling. A validation that takes longer still marks the container `unhealthy` until it finishes. Docker itself never restarts an unhealthy container.
 
 Kubernetes ignores the Docker `HEALTHCHECK`; see the probe example in the README's Kubernetes section.
 

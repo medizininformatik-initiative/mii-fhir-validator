@@ -6,3 +6,6 @@
 !THIRD_PARTY_NOTICES.md
 !validator/advisor.json
 !validator/docker-entrypoint.sh
+!validator/nginx.conf
+!validator/health.json
+!docs/public/openapi.yaml

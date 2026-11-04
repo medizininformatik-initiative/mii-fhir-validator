@@ -5,6 +5,8 @@ info:
     HTTP API of the MII FHIR Validator, based on the [FHIR Validator CLI](https://confluence.hl7.org/spaces/FHIR/pages/35718580/Using+the+FHIR+Validator) running in server mode.
 
     The validator accepts FHIR resources (JSON or XML) and returns an `OperationOutcome` with validation results.
+
+    Only the operations documented here are available. The other endpoints of the FHIR Validator CLI server (e.g. `/fhirpath`, `/convert`, `/loadIG`, `/stop`) are not exposed and return `404 Not Found`. A wrong HTTP method on a documented path returns `405 Method Not Allowed`.
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -18,7 +20,52 @@ servers:
 tags:
   - name: validation
     description: FHIR resource validation
+  - name: operations
+    description: Health probe and API description
 paths:
+  /health:
+    get:
+      tags:
+        - operations
+      summary: Readiness of the validator
+      description: |
+        Returns `200` with `{"status":"UP"}` when the validator has loaded the Implementation Guides and answers HTTP requests. Every call asks the validator; nothing is cached.
+
+        The validator handles one request at a time, so `/health` also fails while a long validation is running. Use it as a readiness probe with enough tolerance (see the documentation on health checks), not to decide whether to restart the container after a single failure.
+
+        Healthy does not mean the terminology server is reachable or loaded.
+      operationId: health
+      responses:
+        "200":
+          description: The validator is ready.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum: [UP]
+              example:
+                status: UP
+        "500":
+          description: The validator is not ready (still loading, stopped, or busy for longer than 3 s).
+  /openapi.json:
+    get:
+      tags:
+        - operations
+      summary: This API description
+      description: Returns this OpenAPI document as JSON.
+      operationId: openapi
+      responses:
+        "200":
+          description: OpenAPI 3.1 document.
+          content:
+            application/json:
+              schema:
+                type: object
   /validateResource:
     post:
       tags:

@@ -1,6 +1,7 @@
 # mii-fhir-validator — Agent Instructions
 
-Docker packaging of the HL7 `validator_cli.jar`, run in `server` mode on port 8080, pre-loaded
+Docker packaging of the HL7 `validator_cli.jar`, run in `server` mode behind an in-image nginx
+allowlist on port 8080 (#21), pre-loaded
 with the MII Kerndatensatz (KDS) IGs, plus a terminology server (local Blaze, or the MII
 Ontoserver through an mTLS nginx proxy). There is no application source code: the moving parts
 are the Dockerfile, the entrypoint script, `docker-compose.yml`, the terminology scripts and the
@@ -56,8 +57,17 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
   1. seed `$FHIR_HOME/.fhir/packages` from the baked cache (`FHIR_CACHE_SEED`), else fall back to
      the read-only baked cache (Kubernetes `readOnlyRootFilesystem`);
   2. forward proxy (`FORWARD_PROXY_*`) → JVM `-Dhttp(s).proxy*` properties;
-  3. write `/tmp/fhir-settings.json` for plain-`http://` `TX_SERVER` or basic auth;
-  4. `exec java … server 8080` with `IG_PARAMS` (default `DEFAULT_IG_PARAMS`) and `advisor.json`.
+  3. require a writable `/tmp`; write `/tmp/fhir-settings.json` for plain-`http://` `TX_SERVER`
+     or basic auth;
+  4. `nginx -t`, then start nginx (`validator/nginx.conf`, port 8080) and `java … server 8081`
+     (no `-allowNetworkAccess`, so loopback only) with `IG_PARAMS` (default `DEFAULT_IG_PARAMS`)
+     and `advisor.json` in the background; PID files `/tmp/nginx.pid`, `/tmp/validator.pid`;
+  5. stay PID 1 as supervisor: TERM/INT → stop both (KILL after 8 s), exit 0; one child exits →
+     stop the other, exit with its code (0 → 1).
+- `validator/nginx.conf` is default-deny: exact routes `POST /validateResource`, `GET /health`
+  (`auth_request` to the validator on every call, never `return`), `GET /openapi.json` (built
+  from `docs/public/openapi.yaml` in a pinned `yq` stage), everything else 404/405. Opening a
+  route is a deliberate API decision (#21, Hyrum's Law); `build.yml` asserts the blocked list.
 - Both validator services share one image and `container_name: fhir-validator`.
 
 ## Conventions not enforced by tooling
