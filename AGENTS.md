@@ -57,8 +57,8 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
   1. seed `$FHIR_HOME/.fhir/packages` from the baked cache (`FHIR_CACHE_SEED`), else fall back to
      the read-only baked cache (Kubernetes `readOnlyRootFilesystem`);
   2. forward proxy (`FORWARD_PROXY_*`) → JVM `-Dhttp(s).proxy*` properties;
-  3. require a writable `/tmp`; write `/tmp/fhir-settings.json` for plain-`http://` `TX_SERVER`
-     or basic auth;
+  3. require a writable `/tmp`; write `/tmp/fhir-settings.json` (one entry for `TX_SERVER`) for
+     plain `http://`, basic auth or `TX_SERVER_ALLOW_PRIVATE_NETWORK=true` (default; #26);
   4. `nginx -t`, then start nginx (`validator/nginx.conf`, port 8080) and `java … server 8081`
      (no `-allowNetworkAccess`, so loopback only) with `IG_PARAMS` (default `DEFAULT_IG_PARAMS`)
      and `advisor.json` in the background; PID files `/tmp/nginx.pid`, `/tmp/validator.pid`;

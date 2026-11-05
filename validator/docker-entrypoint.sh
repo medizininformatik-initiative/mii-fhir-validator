@@ -97,6 +97,17 @@ if [ -n "${ADDITIONAL_IG_PARAMS:-}" ] && ! ig_pairs $ADDITIONAL_IG_PARAMS; then
   exit 1
 fi
 
+# May TX_SERVER resolve to a private address (#26)? Default true: the compose profiles and most
+# cluster deployments reach the terminology server on a private network. false keeps the
+# validator's private-address blocking (6.10+ SSRF protection) for the configured server too.
+case "${TX_SERVER_ALLOW_PRIVATE_NETWORK:-true}" in
+  true | false) ALLOW_PRIVATE_NETWORK="${TX_SERVER_ALLOW_PRIVATE_NETWORK:-true}" ;;
+  *)
+    echo "Error: TX_SERVER_ALLOW_PRIVATE_NETWORK must be true or false." >&2
+    exit 1
+    ;;
+esac
+
 # nginx temporary files, the PID files and fhir-settings.json live in /tmp.
 if ! mkdir -p /tmp/nginx 2>/dev/null || [ ! -w /tmp/nginx ]; then
   echo "Error: /tmp must be writable. With a read-only root filesystem, mount a tmpfs or emptyDir at /tmp." >&2
@@ -105,60 +116,30 @@ fi
 
 FHIR_SETTINGS_ARG=""
 
-# Generate fhir-settings.json if TX_SERVER uses plain HTTP or basic auth credentials are provided
-if [ -n "${TX_SERVER_USERNAME:-}" ] && [ -n "${TX_SERVER_PASSWORD:-}" ]; then
-  case "${TX_SERVER:-}" in
-    http://*)
-      cat > /tmp/fhir-settings.json <<EOF
-{
-  "servers": [
+# fhir-settings.json: one server entry for TX_SERVER when it uses plain http://, has basic auth
+# credentials, or may resolve to a private address (validator 6.10+ refuses private addresses
+# unless the entry has allowPrivateNetwork; 6.9.11 ignores the key). The validator matches the
+# entry by scheme, host, port and path prefix. An explicit -fhir-settings file takes precedence
+# over fhir.settings.path and ~/.fhir/fhir-settings.json.
+if [ -n "${TX_SERVER:-}" ]; then
+  allow_http=false
+  case "$TX_SERVER" in http://*) allow_http=true ;; esac
+  if [ "$allow_http" = true ] || [ -n "${TX_SERVER_USERNAME:-}" ] || [ "$ALLOW_PRIVATE_NETWORK" = true ]; then
     {
-      "url": "${TX_SERVER}",
-      "type": "fhir",
-      "authenticationType": "basic",
-      "username": "${TX_SERVER_USERNAME}",
-      "password": "${TX_SERVER_PASSWORD}",
-      "allowHttp": true
-    }
-  ]
-}
-EOF
-      ;;
-    *)
-      cat > /tmp/fhir-settings.json <<EOF
-{
-  "servers": [
-    {
-      "url": "${TX_SERVER}",
-      "type": "fhir",
-      "authenticationType": "basic",
-      "username": "${TX_SERVER_USERNAME}",
-      "password": "${TX_SERVER_PASSWORD}"
-    }
-  ]
-}
-EOF
-      ;;
-  esac
-  FHIR_SETTINGS_ARG="-fhir-settings /tmp/fhir-settings.json"
-else
-  case "${TX_SERVER:-}" in
-    http://*)
-      cat > /tmp/fhir-settings.json <<EOF
-{
-  "servers": [
-    {
-      "url": "${TX_SERVER}",
-      "type": "fhir",
-      "authenticationType": "none",
-      "allowHttp": true
-    }
-  ]
-}
-EOF
-      FHIR_SETTINGS_ARG="-fhir-settings /tmp/fhir-settings.json"
-      ;;
-  esac
+      printf '{\n  "servers": [\n    {\n'
+      printf '      "url": "%s",\n      "type": "fhir",\n' "$TX_SERVER"
+      if [ -n "${TX_SERVER_USERNAME:-}" ]; then # the pair check above guarantees the password
+        printf '      "authenticationType": "basic",\n'
+        printf '      "username": "%s",\n      "password": "%s"' "$TX_SERVER_USERNAME" "$TX_SERVER_PASSWORD"
+      else
+        printf '      "authenticationType": "none"'
+      fi
+      if [ "$allow_http" = true ]; then printf ',\n      "allowHttp": true'; fi
+      if [ "$ALLOW_PRIVATE_NETWORK" = true ]; then printf ',\n      "allowPrivateNetwork": true'; fi
+      printf '\n    }\n  ]\n}\n'
+    } > /tmp/fhir-settings.json
+    FHIR_SETTINGS_ARG="-fhir-settings /tmp/fhir-settings.json"
+  fi
 fi
 
 # Supervision (#21): nginx on port 8080 is the only exposed listener and forwards an allowlist

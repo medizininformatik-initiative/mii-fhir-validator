@@ -63,7 +63,7 @@ fi
 passed=0
 failed=0
 
-# run <name> <expected exit> [docker args...] -- [+must-contain | -must-not-contain ...]
+# run <name> <expected exit> [docker args...] -- [+must-contain | -must-not-contain | =settings-json ...]
 run() {
   local name="$1" want="$2"
   shift 2
@@ -79,6 +79,11 @@ run() {
   [[ "$rc" == "$want" ]] || problems+=" exit $rc (expected $want);"
   local p mode
   for pattern in "$@"; do
+    if [[ "$pattern" == "=settings-json" ]]; then # the printed fhir-settings.json parses as JSON
+      awk '/^SETTINGS:$/ {s=1; next} s {print} s && /^}$/ {exit}' <<<"$out" | jq -e . >/dev/null 2>&1 \
+        || problems+=" fhir-settings.json missing or not valid JSON;"
+      continue
+    fi
     p="${pattern#[+-]}"
     mode=-qF
     [[ "$p" == ARG=* || "$p" == NGINX_ARG=* ]] && mode=-qxF # one argument per line: match it exactly
@@ -139,14 +144,50 @@ run "custom non-proxy hosts" 0 -e FORWARD_PROXY_HOST=proxy.example -e FORWARD_PR
 run "no proxy" 0 -- "-proxyHost"
 
 # Terminology server and fhir-settings.json.
+# One server entry for TX_SERVER when it is http://, has credentials or may be on a private
+# network (TX_SERVER_ALLOW_PRIVATE_NETWORK, default true; validator 6.10+ SSRF protection, #26).
 run "no TX_SERVER" 0 -- "-ARG=-tx" "-ARG=-fhir-settings" "-SETTINGS:"
-run "http TX_SERVER" 0 -e TX_SERVER=http://tx.example/fhir -- \
-  "+ARG=http://tx.example/fhir" "+ARG=-fhir-settings" '+"authenticationType": "none"' '+"allowHttp": true'
-run "https TX_SERVER" 0 -e TX_SERVER=https://tx.example/fhir -- "+ARG=https://tx.example/fhir" "-ARG=-fhir-settings"
-run "https TX_SERVER with basic auth" 0 -e TX_SERVER=https://tx.example/fhir -e TX_SERVER_USERNAME=user \
-  -e TX_SERVER_PASSWORD=pw -- '+"authenticationType": "basic"' '+"username": "user"' '-"allowHttp"'
-run "http TX_SERVER with basic auth" 0 -e TX_SERVER=http://tx.example/fhir -e TX_SERVER_USERNAME=user \
-  -e TX_SERVER_PASSWORD=pw -- '+"authenticationType": "basic"' '+"allowHttp": true'
+run "no TX_SERVER, private network true" 0 -e TX_SERVER_ALLOW_PRIVATE_NETWORK=true -- \
+  "-ARG=-tx" "-ARG=-fhir-settings" "-SETTINGS:"
+
+private='"allowPrivateNetwork": true'
+http_url=http://tx.example/fhir
+https_url=https://tx.example/fhir
+creds=(-e TX_SERVER_USERNAME=user -e TX_SERVER_PASSWORD=pw)
+# The entry's url and type, and the synthetic password, must be written, not only valid JSON.
+http_entry=("+\"url\": \"$http_url\"," '+"type": "fhir",')
+https_entry=("+\"url\": \"$https_url\"," '+"type": "fhir",')
+password='+"password": "pw"'
+# Matrix: scheme x credentials x TX_SERVER_ALLOW_PRIVATE_NETWORK.
+run "http, no credentials, private true" 0 -e TX_SERVER=$http_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=true -- \
+  "${http_entry[@]}" "+ARG=$http_url" "+ARG=-fhir-settings" '+"authenticationType": "none"' '+"allowHttp": true' "+$private" =settings-json
+run "http, no credentials, private false" 0 -e TX_SERVER=$http_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=false -- \
+  "${http_entry[@]}" "+ARG=-fhir-settings" '+"authenticationType": "none"' '+"allowHttp": true' '-"allowPrivateNetwork"' =settings-json
+run "http, credentials, private true" 0 -e TX_SERVER=$http_url "${creds[@]}" -e TX_SERVER_ALLOW_PRIVATE_NETWORK=true -- \
+  "${http_entry[@]}" "$password" "+ARG=-fhir-settings" '+"authenticationType": "basic"' '+"username": "user"' '+"allowHttp": true' "+$private" \
+  =settings-json
+run "http, credentials, private false" 0 -e TX_SERVER=$http_url "${creds[@]}" -e TX_SERVER_ALLOW_PRIVATE_NETWORK=false -- \
+  "${http_entry[@]}" "$password" "+ARG=-fhir-settings" '+"authenticationType": "basic"' '+"username": "user"' '+"allowHttp": true' \
+  '-"allowPrivateNetwork"' =settings-json
+run "https, no credentials, private true" 0 -e TX_SERVER=$https_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=true -- \
+  "${https_entry[@]}" "+ARG=$https_url" "+ARG=-fhir-settings" '+"authenticationType": "none"' '-"allowHttp"' "+$private" =settings-json
+run "https, no credentials, private false" 0 -e TX_SERVER=$https_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=false -- \
+  "+ARG=$https_url" "-ARG=-fhir-settings" "-SETTINGS:"
+run "https, credentials, private true" 0 -e TX_SERVER=$https_url "${creds[@]}" -e TX_SERVER_ALLOW_PRIVATE_NETWORK=true -- \
+  "${https_entry[@]}" "$password" "+ARG=-fhir-settings" '+"authenticationType": "basic"' '+"username": "user"' '-"allowHttp"' "+$private" \
+  =settings-json
+run "https, credentials, private false" 0 -e TX_SERVER=$https_url "${creds[@]}" -e TX_SERVER_ALLOW_PRIVATE_NETWORK=false -- \
+  "${https_entry[@]}" "$password" "+ARG=-fhir-settings" '+"authenticationType": "basic"' '+"username": "user"' '-"allowHttp"' \
+  '-"allowPrivateNetwork"' =settings-json
+# Unset and empty mean true (the default for the compose profiles' private terminology servers).
+run "https, private unset" 0 -e TX_SERVER=$https_url -- "+ARG=-fhir-settings" "+$private" =settings-json
+run "https, private empty" 0 -e TX_SERVER=$https_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK= -- \
+  "+ARG=-fhir-settings" "+$private" =settings-json
+private_err="Error: TX_SERVER_ALLOW_PRIVATE_NETWORK must be true or false."
+run "TX_SERVER_ALLOW_PRIVATE_NETWORK=yes" 1 -e TX_SERVER=$http_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=yes -- \
+  "+$private_err" "-ARG=server" "-SETTINGS:"
+run "TX_SERVER_ALLOW_PRIVATE_NETWORK=TRUE" 1 -e TX_SERVER=$http_url -e TX_SERVER_ALLOW_PRIVATE_NETWORK=TRUE -- \
+  "+$private_err" "-ARG=server" "-SETTINGS:"
 
 # Java arguments: the validator listens on loopback port 8081 only; nginx owns port 8080.
 run "default arguments" 0 -- "+ARG=-Xmx16g" "+ARG=server" "+ARG=8081" "-ARG=8080" "-ARG=-allowNetworkAccess" \

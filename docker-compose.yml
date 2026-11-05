@@ -20,6 +20,7 @@ services:
       - TX_SERVER=${TX_SERVER:-http://blaze-terminology:8080/fhir}
       - TX_SERVER_USERNAME=${TX_SERVER_USERNAME:-}
       - TX_SERVER_PASSWORD=${TX_SERVER_PASSWORD:-}
+      - TX_SERVER_ALLOW_PRIVATE_NETWORK=${TX_SERVER_ALLOW_PRIVATE_NETWORK:-true}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}
@@ -58,6 +59,7 @@ services:
       - FHIR_HOME=${FHIR_HOME:-/root}
       - FHIR_CACHE_SEED=${FHIR_CACHE_SEED:-true}
       - TX_SERVER=${TX_SERVER:-http://nginx/fhir}
+      - TX_SERVER_ALLOW_PRIVATE_NETWORK=${TX_SERVER_ALLOW_PRIVATE_NETWORK:-true}
       - TX_CACHE_DIR=${TX_CACHE_DIR:-/tmp/tx-cache}
       - TX_LOG=${TX_LOG:-/tmp/tx-cache/tx.log}
       - DISPLAY_ISSUES_ARE_WARNINGS=${DISPLAY_ISSUES_ARE_WARNINGS:-false}

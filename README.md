@@ -109,6 +109,7 @@ Configuration is split into two tiers:
 - `FHIR_HOME` - FHIR package cache home directory (default: `/root`)
 - `FHIR_CACHE_SEED` - Seed writable cache from baked-in defaults at startup (default: `true`)
 - `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
+- `TX_SERVER_ALLOW_PRIVATE_NETWORK` - Allow `TX_SERVER` to resolve to a private address, e.g. a Docker or cluster service (default: `true`; needed from validator 6.10)
 - `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
 - `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
 - `DISPLAY_ISSUES_ARE_WARNINGS` - Report a wrong `Coding.display` as a warning instead of an error (default: `false`)
