@@ -122,6 +122,13 @@ run "tx credentials without TX_SERVER" 1 -e TX_SERVER_USERNAME=user -e TX_SERVER
 display_err="Error: DISPLAY_ISSUES_ARE_WARNINGS must be true or false."
 run "DISPLAY_ISSUES_ARE_WARNINGS=yes" 1 -e DISPLAY_ISSUES_ARE_WARNINGS=yes -- "+$display_err" "-ARG=server"
 run "DISPLAY_ISSUES_ARE_WARNINGS=TRUE" 1 -e DISPLAY_ISSUES_ARE_WARNINGS=TRUE -- "+$display_err" "-ARG=server"
+additional_err='Error: ADDITIONAL_IG_PARAMS must be a list of "-ig <package#version|path>" pairs.'
+run "ADDITIONAL_IG_PARAMS without -ig" 1 -e "ADDITIONAL_IG_PARAMS=extra.pkg#5.0.0" -- "+$additional_err" "-ARG=server"
+run "ADDITIONAL_IG_PARAMS with a lone -ig" 1 -e "ADDITIONAL_IG_PARAMS=-ig extra.pkg#5.0.0 -ig" -- "+$additional_err" "-ARG=server"
+run "ADDITIONAL_IG_PARAMS with an option as source" 1 -e "ADDITIONAL_IG_PARAMS=-ig -tx" -- "+$additional_err" "-ARG=server"
+run "ADDITIONAL_IG_PARAMS with -allowNetworkAccess as source" 1 \
+  -e "ADDITIONAL_IG_PARAMS=-ig extra.pkg#5.0.0 -ig -allowNetworkAccess" -- "+$additional_err" "-ARG=server"
+run "ADDITIONAL_IG_PARAMS with a ./ path" 0 -e "ADDITIONAL_IG_PARAMS=-ig ./-name.tgz" -- "+ARG=./-name.tgz"
 
 # Proxy properties.
 run "valid proxy" 0 -e FORWARD_PROXY_HOST=proxy.example -e FORWARD_PROXY_PORT=3128 -- \
@@ -150,6 +157,12 @@ run "DISPLAY_ISSUES_ARE_WARNINGS=false" 0 -e DISPLAY_ISSUES_ARE_WARNINGS=false -
 run "DISPLAY_ISSUES_ARE_WARNINGS empty" 0 -e DISPLAY_ISSUES_ARE_WARNINGS= -- "-ARG=-display-issues-are-warnings" "+ARG=server"
 run "IG_PARAMS replaces the defaults" 0 -e "IG_PARAMS=-ig custom.pkg#2.0.0 -ig /igs/local.tgz" -- \
   "+ARG=custom.pkg#2.0.0" "+ARG=/igs/local.tgz" "-ARG=default.pkg#1.0.0"
+run "ADDITIONAL_IG_PARAMS extends the defaults" 0 -e "ADDITIONAL_IG_PARAMS=-ig extra.pkg#5.0.0" -- \
+  "+ARG=default.pkg#1.0.0" "+ARG=extra.pkg#5.0.0"
+run "ADDITIONAL_IG_PARAMS extends IG_PARAMS" 0 -e "IG_PARAMS=-ig a.pkg#1.0.0" \
+  -e "ADDITIONAL_IG_PARAMS=-ig b.pkg#2.0.0 -ig /igs/c.tgz" -- \
+  "+ARG=a.pkg#1.0.0" "+ARG=b.pkg#2.0.0" "+ARG=/igs/c.tgz" "-ARG=default.pkg#1.0.0"
+run "ADDITIONAL_IG_PARAMS empty" 0 -e ADDITIONAL_IG_PARAMS= -- "+ARG=default.pkg#1.0.0" "+ARG=server"
 run "JAVA_OPTS, FHIR_VERSION, TX_CACHE_DIR, TX_LOG" 0 -e JAVA_OPTS=-Xmx2g -e FHIR_VERSION=5.0 \
   -e TX_CACHE_DIR=/tmp/other -e TX_LOG=/tmp/other/tx.log -- \
   "+ARG=-Xmx2g" "-ARG=-Xmx16g" "+ARG=5.0" "+ARG=/tmp/other" "+ARG=-txLog" "+ARG=/tmp/other/tx.log"
