@@ -76,7 +76,8 @@ COPY validator/advisor.json /app/validator/advisor.json
 COPY validator/nginx.conf validator/health.json /app/validator/
 COPY --from=openapi /tmp/openapi.json /app/validator/openapi.json
 
-# Entrypoint script: generates fhir-settings.json at runtime if TX_SERVER uses HTTP
+# Entrypoint script: generates fhir-settings.json at runtime for TX_SERVER (plain HTTP, basic auth,
+# private network access; see docs/configuration.md)
 COPY validator/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
