@@ -17,6 +17,7 @@ scripts/terminology/  MII terminology BOM (package.json) + download/upload scrip
 scripts/test/         validate-test-resources.sh: integration check, used by CI and `make test`
 scripts/ci/           download-snomed-ct.sh: SNOMED CT zip from speicherwolke, NLM as fallback
 scripts/              check-sync.sh, doctor.sh
+renovate.json         dependency update PRs against develop (base images, validator, Actions, npm)
 tests/                hooks/, runner/, snomed/, entrypoint/: fast tests without a terminology stack
 nginx/                mTLS proxy to ontoserver.mii-termserv.de; certs/ holds client keys (secret)
 docs/                 VitePress site; public/openapi.yaml documents the validator HTTP API
@@ -33,7 +34,8 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
   CI runs `make check STRICT=1` (`checks.yml`); without `STRICT=1` missing linters are skipped.
 - `make lint` — ShellCheck (all non-ignored `*.sh`), hadolint, actionlint, `docker compose config`
   for both profiles and the CI override. Single linter: `make lint-sh|lint-docker|lint-actions|lint-compose`.
-- `make check-sync` — exact comparison of IG versions, image tags, BOM and SNOMED CT name.
+- `make check-sync` — exact comparison of IG versions, image tags, BOM and SNOMED CT name;
+  every `FROM` in `validator/Dockerfile` pinned as `tag@sha256:…` (#42).
 - `make test-entrypoint` — runs the working-tree entrypoint in `ubuntu:24.04` with a stub `java`;
   `ENTRYPOINT_TEST_IMAGE=mii-fhir-validator:test` tests a built image instead.
 - Integration (needs SNOMED CT, terminology in Blaze, several GB RAM):
@@ -120,7 +122,8 @@ docs/                 VitePress site; public/openapi.yaml documents the validato
 - Migrations: none in this repo. Blaze data lives in the `blaze-data` volume; never run
   `docker compose down -v` without asking.
 - Dependencies: ask before installing tools or adding packages, and before bumping
-  `VALIDATOR_VERSION`, the Blaze image digest, GitHub Action or linter versions.
+  `VALIDATOR_VERSION`, the Blaze image digest, the base image digests in `validator/Dockerfile`,
+  GitHub Action or linter versions. Renovate proposes these as PRs; review them like any other.
 - The MII Ontoserver is for development only: few validations, no patient data.
 
 ## Where the rules are enforced

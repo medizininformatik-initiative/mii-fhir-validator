@@ -1,4 +1,4 @@
-FROM alpine:3.24 AS fetch-validator
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS fetch-validator
 ARG VALIDATOR_VERSION=6.9.11
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
@@ -8,7 +8,7 @@ FROM mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279
 COPY docs/public/openapi.yaml /tmp/openapi.yaml
 RUN yq -o=json '.' /tmp/openapi.yaml > /tmp/openapi.json
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-noble@sha256:ad806840ae514b83d3d8e3a00a5c1b7302fb0a6ae02bbbaf8a8bf1ffdf5367c6
 
 LABEL org.opencontainers.image.title="MII FHIR Validator"
 LABEL org.opencontainers.image.description="A FHIR validation service pre-configured for MII Implementation Guides"

@@ -4,6 +4,7 @@
 #   2. Image tag:   both validator services in docker-compose.yml = image refs in README.md, docs/use.md
 #   3. Terminology BOM: exact version in scripts/terminology/package.json = docs/overview.md table
 #   4. SNOMED CT release name: docker-compose.yml = CI workflows = snomed-ct-release/README.md
+#   5. Base images: every FROM in validator/Dockerfile names a tag and a digest (#42)
 # docs/overview.md also pins an image tag for the 2026 IG set on purpose; it is not checked.
 
 set -uo pipefail
@@ -79,6 +80,28 @@ if [[ "$(wc -l <<<"$snomed" | tr -d ' ')" -ne 1 ]]; then
   bad "SNOMED CT release names differ: $(echo $snomed)"
 else
   ok "SNOMED CT release $snomed"
+fi
+
+# 5. Base images: image:tag@sha256:<64 hex> on every FROM, so a rebuild of the same commit gets
+# the same base (Renovate updates the digests). A FROM naming an earlier stage is fine.
+stages=" "
+unpinned=""
+from_count=0
+while read -r _ image rest; do
+  while [[ "$image" == --* ]]; do read -r image rest <<<"$rest"; done # FROM --platform=… image
+  from_count=$((from_count + 1))
+  # The tag is in the last path component (a registry port such as host:5000/ is not a tag).
+  if [[ "$stages" != *" $image "* && ! "$image" =~ ^([^@]*/)?[^/@:]+:[^/@:]+@sha256:[0-9a-f]{64}$ ]]; then
+    unpinned+=" $image"
+  fi
+  if [[ "$rest" =~ ^[Aa][Ss][[:space:]]+([^[:space:]]+) ]]; then stages+="${BASH_REMATCH[1]} "; fi
+done < <(grep -iE '^FROM[[:space:]]' validator/Dockerfile)
+if [[ "$from_count" -eq 0 ]]; then
+  bad "no FROM found in validator/Dockerfile"
+elif [[ -n "$unpinned" ]]; then
+  bad "base images in validator/Dockerfile without tag@sha256 digest:$unpinned"
+else
+  ok "base images in validator/Dockerfile pinned by digest ($from_count FROM)"
 fi
 
 exit "$failed"
