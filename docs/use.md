@@ -2,7 +2,7 @@
 
 ## Starting the Service
 
-For validation against the **2026 MII Core Data Set IGs**, use release **`v0.0.1-alpha.9`** (Docker image tag `0.0.1-alpha.9`). See [Pre-configured Implementation Guides](overview.md#pre-configured-implementation-guides) for the complete package list and the agreed microbiology and ICU version exceptions.
+For validation against the **2026 MII Core Data Set IGs**, use release **`v0.0.1-alpha.10`** (Docker image tag `0.0.1-alpha.10`). See [Pre-configured Implementation Guides](overview.md#pre-configured-implementation-guides) for the complete package list and the agreed microbiology and ICU version exceptions.
 
 ### Blaze Profile (Default)
 
@@ -24,7 +24,7 @@ docker compose up -d
 
 ### Loading Terminology Resources into Blaze
 
-Release `v0.0.1-alpha.9` uses **MII terminology BOM `2026.8.25`** for the 2026 CDS setup. See [Terminology for the 2026 Release](overview.md#terminology-for-the-2026-release) for the package and version.
+Release `v0.0.1-alpha.10` uses **MII terminology BOM `2026.8.25`** for the 2026 CDS setup. See [Terminology for the 2026 Release](overview.md#terminology-for-the-2026-release) for the package and version.
 
 After starting Blaze for the first time, upload the required MII terminology packages:
 
@@ -42,7 +42,7 @@ Without this step, terminology-dependent validation (CodeSystem lookups, ValueSe
 
 ## Validating a FHIR Resource
 
-The validator exposes a single HTTP endpoint on port `8080`.
+The validator exposes a single validation endpoint on port `8080`, plus `GET /health` and `GET /openapi.json`. All other endpoints of the FHIR Validator CLI server are blocked (see [Exposed Endpoints](configuration.md#exposed-endpoints)).
 
 ### Endpoint
 
@@ -85,22 +85,30 @@ To connect to any HTTP terminology server, set `TX_SERVER` to an `http://` URL. 
 docker run -d -p 8080:8080 \
   -e TX_SERVER=http://my-terminology-server:8080/fhir \
   --network your-network \
-  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.9
+  ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.10
 ```
 
 ## Loading Additional Implementation Guides
 
-To load local IG packages from the `igs/` directory, set `IG_PARAMS` in `.env`:
+To load IGs in addition to the default MII IGs, set `ADDITIONAL_IG_PARAMS` in `.env` (see [Configuration](configuration.md#additional-ig-params)):
 
 ```bash
-IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz"
+ADDITIONAL_IG_PARAMS="-ig hl7.fhir.us.cqfmeasures#5.0.0"
+```
+
+Local IG packages from the `igs/` directory work the same way:
+
+```bash
+ADDITIONAL_IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz"
 ```
 
 For multiple IGs:
 
 ```bash
-IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
+ADDITIONAL_IG_PARAMS="-ig /igs/package1.tgz -ig /igs/package2.tgz"
 ```
+
+To **replace** the default MII IGs instead, set `IG_PARAMS`. It must then list every IG you need, the MII IGs included; IGs that are left out are not loaded.
 
 ## Offline Operation
 
@@ -110,7 +118,7 @@ SNOMED CT release files must still be present in `snomed-ct-release/` for Blaze 
 
 ### Custom IGs
 
-If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup and may require internet access. To pre-cache them, run the validator once while online:
+If you add IGs beyond the defaults via `ADDITIONAL_IG_PARAMS` (or replace the list via `IG_PARAMS`), they and their dependencies are resolved at startup and may require internet access. This also applies to a local `.tgz` from `igs/`: its dependencies must be in the package cache. To pre-cache them, run the validator once while online:
 
 ```bash
 docker compose up -d

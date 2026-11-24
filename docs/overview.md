@@ -62,15 +62,15 @@ The Docker image ships with a set of MII IGs and their dependencies pre-cached a
 
 ### Validating the 2026 MII Core Data Set
 
-Use release **`v0.0.1-alpha.9`** to validate against the **2026 MII Core Data Set (CDS / KDS) Implementation Guides**. Pin the Docker image to this version to retain the 2026 package set when development moves to the 2027 IGs:
+Use release **`v0.0.1-alpha.10`** to validate against the **2026 MII Core Data Set (CDS / KDS) Implementation Guides**. Pin the Docker image to this version to retain the 2026 package set when development moves to the 2027 IGs:
 
 ```yaml
-image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.9
+image: ghcr.io/medizininformatik-initiative/mii-fhir-validator:0.0.1-alpha.10
 ```
 
 For the 2026 release line, it was agreed to **pre-apply the microbiology IG from the 2027 release line** and **keep ICU on its 2025 version**. Accordingly, this validator release includes microbiology `2027.0.0-ballot2` and ICU `2025.0.4`. These are intentional exceptions to the 2026 package versions. The consent IG is included at `2026.0.1-rc-4`.
 
-The following table lists all explicitly configured IG packages in `v0.0.1-alpha.9`; transitive dependencies are also cached in the image.
+The following table lists all explicitly configured IG packages in `v0.0.1-alpha.10`; transitive dependencies are also cached in the image.
 
 | Package | Version |
 | --- | --- |
@@ -94,20 +94,20 @@ The following table lists all explicitly configured IG packages in `v0.0.1-alpha
 
 The release configuration is recorded in:
 
-- [`validator/Dockerfile` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/validator/Dockerfile) — `ARG IG_LIST` defines the IGs baked into the image.
-- [`.env.default` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/.env.default) — `IG_PARAMS` defines the default IGs loaded at runtime via `docker-compose.yml`.
+- [`validator/Dockerfile` at `v0.0.1-alpha.10`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.10/validator/Dockerfile) — `ARG IG_LIST` defines the IGs baked into the image.
+- [`.env.default` at `v0.0.1-alpha.10`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.10/.env.default) — `IG_PARAMS` defines the default IGs loaded at runtime via `docker-compose.yml`.
 
 An existing `.env` file can override the image's default package set through `IG_PARAMS`. To use the 2026 set, align that variable with this release's `.env.default`, or leave it unset or empty to use the image defaults.
 
 ### Terminology for the 2026 Release
 
-Release `v0.0.1-alpha.9` pins the MII terminology bill of materials (BOM) to **`2026.8.25`**:
+Release `v0.0.1-alpha.10` pins the MII terminology bill of materials (BOM) to **`2026.8.25`**:
 
 | Package | Version |
 | --- | --- |
 | `@mii-termserv/de.medizininformatikinitiative.kerndatensatz.terminology.bill-of-materials` | `2026.8.25` |
 
-The BOM selects the terminology packages downloaded for the local Blaze terminology server. It is configured separately from the IG package list in [`scripts/terminology/package.json` at `v0.0.1-alpha.9`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.9/scripts/terminology/package.json), using an exact version without a `^` range.
+The BOM selects the terminology packages downloaded for the local Blaze terminology server. It is configured separately from the IG package list in [`scripts/terminology/package.json` at `v0.0.1-alpha.10`](https://github.com/medizininformatik-initiative/mii-fhir-validator/blob/v0.0.1-alpha.10/scripts/terminology/package.json), using an exact version without a `^` range.
 
 Terminology package versions are distinct from the IG versions above. For example, this BOM includes ICU terminology `2026.0.2-suts.2` and microbiology-2027 terminology `2027.0.0-alpha.5-suts.2`; the configured IGs remain ICU `2025.0.4` and microbiology `2027.0.0-ballot2`.
 

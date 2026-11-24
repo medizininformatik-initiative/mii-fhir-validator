@@ -1,0 +1,49 @@
+name: Checks
+
+# Fast checks that need no SNOMED CT, terminology server or secrets: strict lint, sync checks,
+# and the hook, validation-runner and entrypoint tests (`make check STRICT=1`).
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    env:
+      HADOLINT_VERSION: 2.14.0
+      HADOLINT_SHA256: 6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install linters
+        run: |
+          command -v shellcheck >/dev/null || { sudo apt-get update && sudo apt-get install -y shellcheck; }
+
+          curl -sSfL -o hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
+          echo "${HADOLINT_SHA256}  hadolint" | sha256sum -c -
+          sudo install -m 755 hadolint /usr/local/bin/hadolint && rm hadolint
+
+          curl -sSfL -o actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          sudo install -m 755 actionlint /usr/local/bin/actionlint && rm actionlint actionlint.tar.gz
+
+      - name: Report prerequisites
+        run: make doctor
+
+      - name: Run checks
+        run: make check STRICT=1

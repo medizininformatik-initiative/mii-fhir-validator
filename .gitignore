@@ -41,8 +41,19 @@ scripts/terminology/package-lock.json
 # Example configuration files
 docker-compose.yml.example
 
-# Environment variable files
+# Environment variable files (tracked examples stay)
 .env
+.env.*
+!.env.default
+!.env.example
+
+# Local secrets
+secrets/
+
+# Docs dependencies and build output
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 # scripts
 scripts/sync-igs.sh

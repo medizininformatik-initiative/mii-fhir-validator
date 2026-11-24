@@ -1,7 +1,10 @@
 install:
-	npm install
+	npm ci
 
-build: install
+build:
 	npm run docs:build
 
-.PHONY: install build
+dev:
+	npm run docs:dev
+
+.PHONY: install build dev

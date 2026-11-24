@@ -1,0 +1,6 @@
+/*
+!/.gitignore
+!/settings.json
+!/skills/
+!/hooks/
+/settings.local.json

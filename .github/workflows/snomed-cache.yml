@@ -1,0 +1,29 @@
+name: SNOMED CT Cache
+
+# Keeps the SNOMED CT release zip in the Actions cache of the default branch, where every branch
+# and pull request can read it. GitHub evicts entries not read for 7 days; a run every 5 days
+# restores the entry (which counts as a read) or downloads it again.
+# Scheduled and manual runs only start once this file is on the default branch (main).
+
+on:
+  schedule:
+    - cron: '0 4 */5 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Restore or download SNOMED CT Release
+        uses: ./.github/actions/snomed-ct-download
+        with:
+          token: ${{ secrets.SCT_DOWNLOAD_TOKEN }}
+          umls-api-key: ${{ secrets.UMLS_API_KEY }}
+          filename: SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip

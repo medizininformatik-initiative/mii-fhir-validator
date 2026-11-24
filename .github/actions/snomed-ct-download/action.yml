@@ -1,0 +1,41 @@
+name: Download SNOMED CT Release with Caching
+description: >-
+  Restores a SNOMED CT release zip from the Actions cache, or downloads it with
+  scripts/ci/download-snomed-ct.sh (speicherwolke share first, then the NLM UTS download API)
+  and saves it to the cache straight away, so a later failing step does not discard it.
+
+inputs:
+  filename:
+    required: true
+    description: The release zip, e.g. SnomedCT_InternationalRF2_PRODUCTION_20250701T120000Z.zip.
+  token:
+    required: false
+    default: ''
+    description: speicherwolke.uni-leipzig.de share token (SCT_DOWNLOAD_TOKEN).
+  umls-api-key:
+    required: false
+    default: ''
+    description: NLM UTS API key (UMLS_API_KEY), used when speicherwolke fails or is not configured.
+
+runs:
+  using: composite
+  steps:
+    - id: restore
+      uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+      with:
+        key: snomed-ct-${{ inputs.filename }}
+        path: ${{ inputs.filename }}
+
+    - if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        SCT_DOWNLOAD_TOKEN: ${{ inputs.token }}
+        UMLS_API_KEY: ${{ inputs.umls-api-key }}
+        FILENAME: ${{ inputs.filename }}
+      run: ./scripts/ci/download-snomed-ct.sh "$FILENAME"
+
+    - if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+      with:
+        key: snomed-ct-${{ inputs.filename }}
+        path: ${{ inputs.filename }}

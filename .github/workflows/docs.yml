@@ -42,7 +42,7 @@ jobs:
         working-directory: docs
         env:
           DOCS_BASE: "/${{ github.event.repository.name }}/"
-        run: make build
+        run: make install build
 
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests"
+  ],
+  "baseBranchPatterns": ["develop"],
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "description": "HL7 validator_cli.jar version in the Dockerfile",
+      "customType": "regex",
+      "managerFilePatterns": ["/^validator/Dockerfile$/"],
+      "matchStrings": ["ARG VALIDATOR_VERSION=(?<currentValue>\\S+)"],
+      "depNameTemplate": "hapifhir/org.hl7.fhir.core",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Base images of validator/Dockerfile: automerge digest and patch updates once CI passes (e.g. JRE security fixes)",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest", "patch", "pinDigest"],
+      "automerge": true
+    },
+    {
+      "description": "Validator versions change validation results and behavior (e.g. SSRF protection in 6.10): always a reviewed PR",
+      "matchPackageNames": ["hapifhir/org.hl7.fhir.core"],
+      "automerge": false
+    },
+    {
+      "description": "Our own image tag in docker-compose.yml is bumped by the release process, not by Renovate",
+      "matchPackageNames": ["ghcr.io/medizininformatik-initiative/mii-fhir-validator"],
+      "enabled": false
+    }
+  ]
+}

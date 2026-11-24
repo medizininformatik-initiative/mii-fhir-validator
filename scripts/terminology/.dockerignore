@@ -1,0 +1,5 @@
+# Build context of scripts/terminology/Dockerfile. The container downloads the packages itself.
+node_modules
+.DS_Store
+Dockerfile
+.dockerignore

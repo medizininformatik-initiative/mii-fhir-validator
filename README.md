@@ -96,7 +96,8 @@ Configuration is split into two tiers:
 
 **Set via `.env` (required for basic use):**
 - `JAVA_OPTS` - JVM memory settings (default: `-Xmx16g`)
-- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`)
+- `IG_PARAMS` - Implementation Guides to load (e.g., `-ig package#version`); replaces the image's default IG list
+- `ADDITIONAL_IG_PARAMS` - Implementation Guides loaded in addition to `IG_PARAMS` or, if unset, the image's default IGs (e.g., `-ig hl7.fhir.us.cqfmeasures#5.0.0`)
 
 **Optional forward proxy settings:**
 - `FORWARD_PROXY_HOST` - Forward proxy hostname or IP address, without a URL scheme
@@ -108,8 +109,10 @@ Configuration is split into two tiers:
 - `FHIR_HOME` - FHIR package cache home directory (default: `/root`)
 - `FHIR_CACHE_SEED` - Seed writable cache from baked-in defaults at startup (default: `true`)
 - `TX_SERVER` - Terminology server URL (default: `http://blaze-terminology:8080/fhir` for blaze profile, `http://nginx/fhir` for ontoserver profile)
+- `TX_SERVER_ALLOW_PRIVATE_NETWORK` - Allow `TX_SERVER` to resolve to a private address, e.g. a Docker or cluster service (default: `true`; needed from validator 6.10)
 - `TX_CACHE_DIR` - Terminology cache directory (default: `/tmp/tx-cache`)
 - `TX_LOG` - Terminology request log path (default: `/tmp/tx-cache/tx.log`)
+- `DISPLAY_ISSUES_ARE_WARNINGS` - Report a wrong `Coding.display` as a warning instead of an error (default: `false`)
 
 **Using .env file:**
 ```bash
@@ -126,7 +129,7 @@ Alternatively, edit `docker-compose.yml` environment variables directly.
 
 ### Validate a FHIR Resource
 
-The validator runs as an HTTP server on port 8080. To validate a resource:
+The validator runs as an HTTP server on port 8080. It exposes only `POST /validateResource`, `GET /health` and `GET /openapi.json`; the other endpoints of the FHIR Validator CLI server (e.g. `/stop`, `/loadIG`) are blocked (see [Exposed Endpoints](docs/configuration.md#exposed-endpoints)). To validate a resource:
 
 **Endpoint:**
 ```
@@ -161,7 +164,7 @@ The pre-built image contains the full FHIR package cache for all default MII IGs
 
 ### Adding Custom IGs for Offline Use
 
-If you add IGs beyond the defaults via `IG_PARAMS`, their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
+If you add IGs beyond the defaults via `ADDITIONAL_IG_PARAMS` (or replace the list via `IG_PARAMS`), they and their dependencies will be resolved at startup. To ensure they are available offline, run the validator once while online to populate the cache:
 
 ```bash
 docker compose up -d
@@ -171,9 +174,9 @@ docker compose down
 
 The `fhir-package-cache` Docker volume persists the cache at `$FHIR_HOME/.fhir/packages` across container restarts. By default (`FHIR_CACHE_SEED=true`), the baked-in MII IG cache is seeded into an empty volume on first start, enabling offline operation immediately. If the volume is read-only, the validator falls back to the baked-in cache automatically.
 
-To load IGs from the `igs/` directory:
+To load IGs from the `igs/` directory in addition to the defaults (their dependencies must be cached as described above):
 ```bash
-IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
+ADDITIONAL_IG_PARAMS="-ig /igs/your-package-2026.0.0.tgz -ig /igs/another-package.tgz"
 ```
 
 **Note:** A terminology service (Blaze) is still required for offline terminology validation (CodeSystem, ValueSet bindings, code validation). SNOMED CT release files must be provided locally — see [snomed-ct-release/README.md](snomed-ct-release/README.md).
@@ -197,7 +200,7 @@ The entrypoint supports three modes based on `FHIR_CACHE_SEED` and mount writabi
 For Kubernetes with `readOnlyRootFilesystem: true`:
 - Set `FHIR_HOME` to a writable mount path (e.g., `/var/lib/fhir`) if you need runtime package downloads
 - Mount a writable volume (emptyDir or PVC) at `$FHIR_HOME/.fhir/packages` for the package cache
-- Mount a writable volume at `/tmp` for terminology cache and `fhir-settings.json`
+- Mount a writable volume at `/tmp` for the terminology cache, `fhir-settings.json` and the internal nginx (required: the container exits with an error if `/tmp` isn't writable)
 - The terminology cache (`TX_CACHE_DIR`, default `/tmp/tx-cache`) must be writable
 - Set `TX_LOG=""` to disable terminology logging (reduces write surface)
 
@@ -244,6 +247,24 @@ volumeMounts:
   - name: fhir-cache
     mountPath: /var/lib/fhir/.fhir/packages  # Must be writable
 ```
+
+### Example: Startup and Readiness Probes
+
+Kubernetes ignores the image's Docker `HEALTHCHECK`, so you need to define probes yourself. `GET /health` answers `200` once all IGs are loaded and the validator responds; it doesn't run a validation (see [Health Check](docs/configuration.md#health-check)):
+
+```yaml
+startupProbe:
+  httpGet: { path: /health, port: 8080 }
+  periodSeconds: 10
+  failureThreshold: 60   # up to 10 min to load the IGs
+readinessProbe:
+  httpGet: { path: /health, port: 8080 }
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30   # 30 x 10 s = ~5 min: a long validation blocks the probe
+```
+
+The validator handles one request at a time, so the probe fails while a long validation is running. A validation that takes longer than about 5 minutes still makes the pod unready until it finishes. Kubernetes starts probes at fixed intervals, so the probe timeout doesn't add to the period as it does with Docker. Don't reuse this endpoint as a `livenessProbe` with tight limits: Kubernetes would restart a pod that is busy, not broken. "Ready" also doesn't mean that the terminology server is set up.
 
 ## Alternative: MII Ontoserver Setup
 

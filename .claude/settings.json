@@ -1,0 +1,98 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make help:*)",
+      "Bash(make doctor:*)",
+      "Bash(make check:*)",
+      "Bash(make check-sync:*)",
+      "Bash(make lint:*)",
+      "Bash(make lint-strict:*)",
+      "Bash(make lint-sh:*)",
+      "Bash(make lint-docker:*)",
+      "Bash(make lint-actions:*)",
+      "Bash(make lint-compose:*)",
+      "Bash(make test-hooks:*)",
+      "Bash(make test-runner:*)",
+      "Bash(make test-entrypoint:*)",
+      "Bash(make test:*)",
+      "Bash(make test-file:*)",
+      "Bash(make docs:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git describe:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run view:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)"
+    ],
+    "deny": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git tag:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.production)",
+      "Read(./.env.development)",
+      "Read(./secrets/**)",
+      "Read(./nginx/certs/*.pem)",
+      "Read(./nginx/certs/*.key)",
+      "Read(./nginx/certs/*.crt)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Edit(./.env)",
+      "Edit(./.env.local)",
+      "Edit(./.env.*.local)",
+      "Edit(./secrets/**)",
+      "Edit(./nginx/certs/*.pem)",
+      "Edit(./nginx/certs/*.key)",
+      "Edit(./nginx/certs/*.crt)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-git-writes.sh",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Read|Edit|Write|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-secret-reads.sh",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/lint-on-stop.sh", "timeout": 120 }
+        ]
+      }
+    ]
+  }
+}
