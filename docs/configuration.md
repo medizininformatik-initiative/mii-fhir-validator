@@ -81,6 +81,16 @@ JVM options passed to the validator process. Increase `-Xmx` if you encounter ou
 Large bundles and the initial terminology cache warm-up can require significant Java heap space. `-Xmx16g` is recommended. Otherwise, `-Xmx8g` is usually sufficient for single-resource validation.
 :::
 
+::: warning CVE-2026-114938 in images up to 0.0.1-alpha.9
+Images up to and including `0.0.1-alpha.9` ship a Java runtime older than Temurin `17.0.21.1+2`, which is affected by CVE-2026-114938 on x86-64 servers with AVX-512. Update to a newer image. Until you can, add `-XX:-UseBASE64Intrinsics` to `JAVA_OPTS`, which turns off the affected code path:
+
+```bash
+JAVA_OPTS="-Xmx16g -XX:-UseBASE64Intrinsics"
+```
+
+`JAVA_OPTS` replaces the default, so keep the `-Xmx` setting. Check the runtime of an image with `docker run --rm --entrypoint java <image> -version`.
+:::
+
 ---
 
 ## Forward Proxy

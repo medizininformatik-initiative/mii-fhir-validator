@@ -116,7 +116,7 @@ The checks are layered. Pick the cheapest one that covers your change:
 | Command | What it checks | Needs |
 |---|---|---|
 | `make lint` | ShellCheck, hadolint, actionlint, `docker compose config` for both profiles and the CI override | linters (missing ones are skipped; `STRICT=1` fails instead) |
-| `make check-sync` | IG versions in `validator/Dockerfile`, `.env.default` and `docs/overview.md`; image tags; terminology BOM pin; SNOMED CT release name | nothing |
+| `make check-sync` | IG versions in `validator/Dockerfile`, `.env.default` and `docs/overview.md`; image tags; terminology BOM pin; SNOMED CT release name; base images in `validator/Dockerfile` pinned by digest | nothing |
 | `make test-entrypoint` | `validator/docker-entrypoint.sh`: error messages and exit codes, proxy and terminology settings, Java arguments, package cache modes | Docker |
 | `make test-runner` | `scripts/test/validate-test-resources.sh` against canned responses | nothing |
 | `make test-snomed` | `scripts/ci/download-snomed-ct.sh`: source order, zip check, no secrets in output | `zip`, `unzip` |
@@ -138,6 +138,20 @@ CI runs `make check STRICT=1` on every pull request to `develop` and `main` (`ch
 GitHub drops cache entries that nobody has read for 7 days. `snomed-cache.yml` runs on `main` every 5 days and on demand (`gh workflow run snomed-cache.yml`), so the entry stays readable for every branch and pull request.
 
 To build the documentation, run `make docs-install` once (runs `npm ci` in `docs/`), then `make docs` for a static build into `docs/.vitepress/dist` or `make docs-dev` for a live-reload server.
+
+## Base Images and Dependency Updates
+
+Every `FROM` in `validator/Dockerfile` names a tag and a digest (`image:tag@sha256:…`), so rebuilding the same commit gives the same Java runtime; `make check-sync` fails on an unpinned `FROM`. The runtime stage uses the multi-arch tag `eclipse-temurin:17-jre-noble`, not a version tag such as `17.0.21.1_2-jre-noble`: a Temurin patch build can be published for some architectures only, and the image is built for `linux/amd64` and `linux/arm64`.
+
+[Renovate](https://docs.renovatebot.com/) (`renovate.json`) opens update pull requests against `develop` once the Renovate GitHub App is enabled for the repository:
+
+| Dependency | Update PRs | Automerge |
+|---|---|---|
+| Base images in `validator/Dockerfile` | digest, patch, minor, major | digest and patch, after CI passes |
+| `VALIDATOR_VERSION` (HL7 `validator_cli.jar`) | new releases | never: validator updates change behavior and results |
+| Blaze image, GitHub Actions, npm packages | as usual | no |
+
+The validator image tag in `docker-compose.yml` is excluded; the release process bumps it.
 
 ## Troubleshooting
 
