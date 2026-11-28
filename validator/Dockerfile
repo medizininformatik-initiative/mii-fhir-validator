@@ -4,7 +4,7 @@ RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
 # Our API spec as JSON, served by nginx at GET /openapi.json instead of the upstream one.
-FROM mikefarah/yq:4.54.1@sha256:4b3d9475d65571d28cbb19544d3820ec2945e4c8b2f18279394282b8dc3a592e AS openapi
+FROM mikefarah/yq:4.54.3@sha256:7834187596ad56fd5a81436114e0b0b9dd54c91bb43946d1f7145b2be5f9c3d2 AS openapi
 COPY docs/public/openapi.yaml /tmp/openapi.yaml
 RUN yq -o=json '.' /tmp/openapi.yaml > /tmp/openapi.json
 
