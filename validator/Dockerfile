@@ -1,5 +1,5 @@
 FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS fetch-validator
-ARG VALIDATOR_VERSION=6.9.11
+ARG VALIDATOR_VERSION=6.10.4
 RUN wget -O /validator_cli.jar \
   https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar
 
